@@ -20,11 +20,14 @@ mongoose.connect(dburl)
 
 app.use(cors());
 app.use(express.json());
+app.use("/uploads", express.static("uploads"));
 
 
 
 app.use("/api/auth", require("./Controller/UserController"));
 app.use("/api/admin", require("./Controller/AdminController"));
+app.use("/api/admin", require("./Controller/AdminController"));
+
 
 app.get("/", (req, res) => {
   res.send("Backend Running");

@@ -1,43 +1,42 @@
-const jwt = require("jsonwebtoken")
-const Admin = require("../models/Admin")
+const jwt = require("jsonwebtoken");
+const Admin = require("../models/Admin");
 
-exports.protectAdmin = async (req,res,next)=>{
+exports.protectAdmin = async (req, res, next) => {
+  try {
+    let token;
 
-let token
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer")
+    ) {
+      token = req.headers.authorization.split(" ")[1];
+    }
 
-if(req.headers.authorization && req.headers.authorization.startsWith("Bearer")){
-token = req.headers.authorization.split(" ")[1]
-}
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Admin not authorized, token missing",
+      });
+    }
 
-if(!token){
-return res.status(401).json({
-success:false,
-message:"Admin not authorized"
-})
-}
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-try{
+    const admin = await Admin.findById(decoded.id).select("-password");
 
-const decoded = jwt.verify(token,process.env.JWT_SECRET)
+    if (!admin) {
+      return res.status(401).json({
+        success: false,
+        message: "Admin not found",
+      });
+    }
 
-req.admin = await Admin.findById(decoded.id)
+    req.admin = admin;
 
-if(!req.admin){
-return res.status(404).json({
-success:false,
-message:"Admin not found"
-})
-}
-
-next()
-
-}catch(err){
-
-return res.status(401).json({
-success:false,
-message:"Invalid admin token"
-})
-
-}
-
-}
+    next();
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired admin token",
+    });
+  }
+};

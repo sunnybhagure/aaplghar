@@ -7,6 +7,7 @@ import LoginPage from './Pages/LoginPage'
 import RegisterPage from './Pages/RegisterPage'
 import AdminLogin from './Pages/AdminLogin'
 import AdminRegister from './Pages/AdminRegister'
+import AddProperty from './Pages/Addproperties'
 
 function App() {
   
@@ -21,6 +22,8 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/AdminLogin" element={<AdminLogin />} />
         <Route path="/AdminRegister" element={<AdminRegister />} />
+        <Route path="/admin-add-property" element={<AddProperty />} />
+        
 
 
       </Routes>

@@ -33,13 +33,8 @@ const propertySchema = new mongoose.Schema(
       required: true,
     },
 
-    bedrooms: {
-      type: Number,
-    },
-
-    bathrooms: {
-      type: Number,
-    },
+    bedrooms: Number,
+    bathrooms: Number,
 
     amenities: [
       {
@@ -47,20 +42,30 @@ const propertySchema = new mongoose.Schema(
       },
     ],
 
+    // ✅ Cloudinary Images
     images: [
       {
-        type: String,
+        url: {
+          type: String,
+          required: true,
+        },
+        public_id: {
+          type: String,
+          required: true,
+        },
       },
     ],
 
-    // Society Plan (optional)
+    // Society Plan (Cloudinary)
     societyPlan: {
-      type: String,
+      url: String,
+      public_id: String,
     },
 
-    // Home Plan (optional)
+    // Home Plan (Cloudinary)
     homePlan: {
-      type: String,
+      url: String,
+      public_id: String,
     },
 
     builder: {
@@ -73,11 +78,6 @@ const propertySchema = new mongoose.Schema(
       type: String,
       enum: ["available", "sold"],
       default: "available",
-    },
-
-    createdAt: {
-      type: Date,
-      default: Date.now,
     },
   },
   {

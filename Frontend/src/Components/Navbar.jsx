@@ -84,6 +84,22 @@ function Navbar() {
           {/* ADMIN LOGIN */}
           {adminToken && (
             <>
+               <li>
+                <Link
+                  to="/admin-your-property"
+                  className="hover:text-[#D4AF37]"
+                >
+                  Your Properties
+                </Link>
+              </li>
+               <li>
+                <Link
+                  to="/admin-add-property"
+                  className="hover:text-[#D4AF37]"
+                >
+                  Add Property
+                </Link>
+              </li>
               <li>
                 <Link
                   to="/admin-dashboard"
