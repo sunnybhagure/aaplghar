@@ -86,7 +86,7 @@ function Navbar() {
             <>
                <li>
                 <Link
-                  to="/admin-your-property"
+                  to="/my-properties"
                   className="hover:text-[#D4AF37]"
                 >
                   Your Properties

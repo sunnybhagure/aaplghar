@@ -85,4 +85,8 @@ const propertySchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("Property", propertySchema);
+if (!mongoose.models.Property) {
+  mongoose.model("Property", propertySchema);
+}
+
+module.exports = mongoose.model("Property");

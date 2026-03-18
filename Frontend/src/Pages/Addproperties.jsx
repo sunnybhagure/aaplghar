@@ -51,7 +51,7 @@ const AddProperty = () => {
 
     try {
       await axios.post(
-        "http://localhost:5000/api/admin/add-property",
+        "http://localhost:5000/api/property/add-property",
         data,
         {
           headers: {

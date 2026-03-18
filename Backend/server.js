@@ -9,13 +9,44 @@ const app = express();
 const dburl = process.env.MONGODB_URI
 
 // Connect to MongoDB
-mongoose.connect(dburl)
+let isConnected = false;
+mongoose.connect(dburl, {
+    serverSelectionTimeoutMS: 30000,
+    socketTimeoutMS: 45000,
+    connectTimeoutMS: 30000,
+    maxPoolSize: 10,
+    retryWrites: true,
+    ssl: true,
+    tlsAllowInvalidCertificates: true, // Temp fix for development - should be false in production
+    authSource: 'admin',
+})
     .then(() => {
-        console.log("Connection successful");
+        isConnected = true;
+        console.log("✓ MongoDB Connection successful");
     })
     .catch((err) => {
-        console.log("MongoDB Connection Error:", err.message);
+        console.log("✗ MongoDB Connection Error:", err.message);
+        console.log("\n⚠️  TROUBLESHOOTING:");
+        console.log("1. Check MongoDB Atlas IP whitelist - add your current IP");
+        console.log("2. Verify connection string is correct in .env");
+        console.log("3. Ensure database user credentials are valid");
+        console.log("4. Check network connectivity to MongoDB Atlas\n");
     });
+
+// Monitor connection status
+mongoose.connection.on('connected', () => {
+    isConnected = true;
+    console.log('MongoDB connected');
+});
+
+mongoose.connection.on('disconnected', () => {
+    isConnected = false;
+    console.log('MongoDB disconnected');
+});
+
+mongoose.connection.on('error', (err) => {
+    console.log('MongoDB connection error:', err);
+});
  
 
 app.use(cors());
@@ -26,7 +57,7 @@ app.use("/uploads", express.static("uploads"));
 
 app.use("/api/auth", require("./Controller/UserController"));
 app.use("/api/admin", require("./Controller/AdminController"));
-app.use("/api/admin", require("./Controller/AdminController"));
+app.use("/api/property", require("./Controller/propertyController"));
 
 
 app.get("/", (req, res) => {

@@ -47,7 +47,19 @@ router.post("/register", async (req, res, next) => {
       },
     })
   } catch (error) {
-    next(error)
+    console.error("User Register error:", error.message);
+    
+    if (error.name === 'MongooseError' || error.message.includes('buffering')) {
+      return res.status(503).json({ 
+        success: false, 
+        message: "Database connection issue. Please try again in a moment." 
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || "Server error" 
+    })
   }
 })
 
@@ -90,7 +102,19 @@ router.post("/login", async (req, res, next) => {
       },
     })
   } catch (error) {
-    next(error)
+    console.error("User Login error:", error.message);
+    
+    if (error.name === 'MongooseError' || error.message.includes('buffering')) {
+      return res.status(503).json({ 
+        success: false, 
+        message: "Database connection issue. Please try again in a moment." 
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || "Server error" 
+    })
   }
 })
 

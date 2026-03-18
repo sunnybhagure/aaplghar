@@ -34,6 +34,7 @@ exports.protectAdmin = async (req, res, next) => {
 
     next();
   } catch (error) {
+    console.log("Admin auth error:", error);
     return res.status(401).json({
       success: false,
       message: "Invalid or expired admin token",

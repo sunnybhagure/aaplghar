@@ -8,6 +8,9 @@ import RegisterPage from './Pages/RegisterPage'
 import AdminLogin from './Pages/AdminLogin'
 import AdminRegister from './Pages/AdminRegister'
 import AddProperty from './Pages/Addproperties'
+import Properties from './Pages/properties'
+import PropertyShowPage from './Pages/propertyShowPage'
+import YourProperties from './Pages/yourProperties'
 
 function App() {
   
@@ -18,11 +21,14 @@ function App() {
       <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/properties" element={<Properties />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/AdminLogin" element={<AdminLogin />} />
         <Route path="/AdminRegister" element={<AdminRegister />} />
         <Route path="/admin-add-property" element={<AddProperty />} />
+        <Route path="/property/:id" element={<PropertyShowPage />} />
+        <Route path="/my-properties" element={<YourProperties />} />
         
 
 
