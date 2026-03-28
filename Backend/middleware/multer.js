@@ -7,7 +7,11 @@ const storage = new CloudinaryStorage({
   params: async (req, file) => {
     return {
       folder: `aaplghar/properties/${req.body.title}`,
-      public_id: file.fieldname,
+      
+      // unique file name
+      public_id: `${file.fieldname}-${Date.now()}`,
+
+      resource_type: "auto",
     };
   },
 });

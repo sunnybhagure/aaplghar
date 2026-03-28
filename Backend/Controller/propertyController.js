@@ -1,116 +1,93 @@
-const express = require("express")
-const upload = require("../middleware/multer");
-const Property = require("../models/Property");
-const { protectAdmin } = require("../middleware/Adminauth");
+const Property = require("../models/property/propertyMain");
 
-const router = express.Router()
-
-router.post(
-  "/add-property",
-  protectAdmin,
-  upload.fields([
-    { name: "hall", maxCount: 1 },
-    { name: "kitchen", maxCount: 1 },
-    { name: "bed1", maxCount: 1 },
-    { name: "bed2", maxCount: 1 },
-    { name: "outer", maxCount: 1 },
-  ]),
-  async (req, res) => {
-    try {
-
-      const files = req.files
-      const images = []
-
-      if (files?.hall)
-        images.push({ url: files.hall[0].path, public_id: files.hall[0].filename })
-
-      if (files?.kitchen)
-        images.push({ url: files.kitchen[0].path, public_id: files.kitchen[0].filename })
-
-      if (files?.bed1)
-        images.push({ url: files.bed1[0].path, public_id: files.bed1[0].filename })
-
-      if (files?.bed2)
-        images.push({ url: files.bed2[0].path, public_id: files.bed2[0].filename })
-
-      if (files?.outer)
-        images.push({ url: files.outer[0].path, public_id: files.outer[0].filename })
-
-      const amenitiesArray = req.body.amenities
-        ? req.body.amenities.split(",")
-        : []
-
-      const property = await Property.create({
-        title: req.body.title,
-        description: req.body.description,
-        city: req.body.city,
-        location: req.body.location,
-        price: req.body.price,
-        area: req.body.area,
-        bedrooms: req.body.bedrooms,
-        bathrooms: req.body.bathrooms,
-        amenities: amenitiesArray,
-        images,
-
-        // ⭐⭐⭐ MOST IMPORTANT
-        builder: req.admin._id
-      })
-
-      res.status(201).json({
-        success: true,
-        message: "Property Added Successfully",
-        property
-      })
-
-    } catch (error) {
-      console.log(error)
-      res.status(500).json({
-        success: false,
-        message: "Server Error"
-      })
-    }
-  }
-)
-
-// GET ALL PROPERTIES
-router.get("/all-properties", async (req, res) => {
+exports.addProperty = async (req, res) => {
   try {
-    const properties = await Property.find().populate("builder", "name email");
-    res.status(200).json(properties);
+    console.log("BODY:", JSON.stringify(req.body, null, 2));
+    console.log("FILES:", JSON.stringify(req.files, null, 2));
+    
+    const body = req.body;
+    const files = req.files || {};
+
+    // 1. Basic Common Data Build
+    let newProperty = {
+      title: body.title,
+      location: { 
+        city: body.city, 
+        area: body.area 
+      },
+      description: body.description,
+      specification: body.specification,
+      propertyType: body.propertyType,
+      price: {
+        starting: body.startPrice ? Number(body.startPrice) : 0,
+        upto: body.endPrice ? Number(body.endPrice) : 0,
+      },
+      amenities: body.amenities ? body.amenities.split(",") : [],
+      nearbyLocalities: body.localities ? body.localities.split(",") : [],
+      images: {
+        coverImage: files.coverImage?.[0]?.path || "",
+        gallery: files.gallery ? files.gallery.map((f) => f.path) : [],
+        societyPlan: files.societyPlan?.[0]?.path || "",
+      },
+      builder: req.admin?._id || null, // Admin ID check
+    };
+
+    // 2. Conditional Details (Property Type pramane)
+    
+    // 🏡 RESIDENTIAL LOGIC
+    if (body.propertyType === "residential") {
+      const bhkTypes = [];
+      ["1RK", "1BHK", "2BHK", "3BHK", "4BHK", "5BHK"].forEach((bhk) => {
+        // Corrected Template Literal and removed 'gold' word
+        if (body[`${bhk}_area`]) { 
+          bhkTypes.push({
+            type: bhk,
+            area: Number(body[`${bhk}_area`]),
+            planImage: files[`${bhk}_plan`]?.[0]?.path || null, 
+          });
+        }
+      });
+
+      newProperty.residentialDetails = {
+        propertySubType: body.resType?.toLowerCase(),
+        status: body.status?.toLowerCase().replace(/\s/g, "_"),
+        bhkTypes: bhkTypes,
+      };
+    } 
+    
+    // 🏢 COMMERCIAL LOGIC
+    else if (body.propertyType === "commercial") {
+      newProperty.commercialDetails = {
+        propertySubType: body.resType?.toLowerCase(),
+        area: body.commercialArea ? Number(body.commercialArea) : 0,
+        parking: body.parking === "on" || body.parking === "true" || body.parking === true,
+        status: body.status?.toLowerCase().replace(/\s/g, "_"),
+      };
+    } 
+    
+    // 🌄 PLOT LOGIC
+    else if (body.propertyType === "plot") {
+      newProperty.plotDetails = {
+        plotType: body.plotType,
+        area: body.plotArea ? Number(body.plotArea) : 0,
+      };
+    }
+
+    // ✅ SAVE TO DB
+    console.log("FINAL DATA TO SAVE:", JSON.stringify(newProperty, null, 2));
+    const property = await Property.create(newProperty);
+
+    res.status(201).json({
+      success: true,
+      message: "Property added successfully",
+      data: property,
+    });
+
   } catch (error) {
-    res.status(500).json({ message: error.message });
-  } 
-})
-
-// GET SINGLE PROPERTY  
-router.get("/:id", async (req, res) => {
-  try {
-    const property = await Property.findById(req.params.id).populate("builder", "name email");  
-    if (!property) {
-      return res.status(404).json({ message: "Property not found" });
-    }
-    res.status(200).json(property);
-    } catch (error) {   
-    res.status(500).json({ message: error.message });
-    }
-})
-
-
-
-router.get("/my-properties", protectAdmin, async (req, res) => {
-
-  try {
-
-    const properties = await Property.find({
-      builder: req.admin._id
-    }).sort({ createdAt: -1 })
-
-    res.json(properties)
-
-  } catch (err) {
-    res.status(500).json({ message: "Error" })
+    console.error("FULL ERROR:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
-
-})
-
-module.exports = router
+};

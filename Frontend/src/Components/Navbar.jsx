@@ -94,7 +94,7 @@ function Navbar() {
               </li>
                <li>
                 <Link
-                  to="/admin-add-property"
+                  to="/add-property"
                   className="hover:text-[#D4AF37]"
                 >
                   Add Property

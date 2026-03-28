@@ -15,6 +15,7 @@ mongoose.connect(dburl, {
     socketTimeoutMS: 45000,
     connectTimeoutMS: 30000,
     maxPoolSize: 10,
+    bufferCommands: false,
     retryWrites: true,
     ssl: true,
     tlsAllowInvalidCertificates: true, // Temp fix for development - should be false in production
@@ -51,13 +52,15 @@ mongoose.connection.on('error', (err) => {
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static("uploads"));
 
 
 
 app.use("/api/auth", require("./Controller/UserController"));
 app.use("/api/admin", require("./Controller/AdminController"));
-app.use("/api/property", require("./Controller/propertyController"));
+app.use("/api/property", require("./routes/property"));
+
 
 
 app.get("/", (req, res) => {
