@@ -1,3 +1,5 @@
+const mongoose = require("mongoose");
+
 const commercialSchema = new mongoose.Schema({
   propertySubType: {
     type: String,

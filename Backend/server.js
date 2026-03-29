@@ -72,3 +72,9 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error("EXPRESS ERROR:", err); // Ata yithe [object Object] chya jagi error message disel
+  res.status(500).send(err.message);
+});

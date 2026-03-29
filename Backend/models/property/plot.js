@@ -1,3 +1,5 @@
+const mongoose = require("mongoose");
+
 const plotSchema = new mongoose.Schema({
   plotType: {
     type: String,

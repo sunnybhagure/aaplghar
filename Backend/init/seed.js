@@ -1,258 +1,261 @@
-const mongoose = require("mongoose");
-const Property = require("../models/Property");
-require("dotenv").config();
+import { useState, useEffect, useRef } from "react";
+import axios from "axios";
+import { 
+  Search, MapPin, Home, Building, LandPlot, 
+  IndianRupee, HousePlus, ChevronLeft, ChevronRight, Loader2 
+} from "lucide-react";
 
-mongoose.connect(process.env.MONGODB_URI)
-.then(()=>console.log("MongoDB Connected"))
-.catch(err=>console.log(err));
+// --- 1. HORIZONTAL SLIDER COMPONENT ---
+const PropertySlider = ({ children }) => {
+  const scrollRef = useRef(null);
+  const scroll = (direction) => {
+    if (scrollRef.current) {
+      const { scrollLeft, clientWidth } = scrollRef.current;
+      const scrollAmount = clientWidth * 0.8;
+      const scrollTo = direction === "left" ? scrollLeft - scrollAmount : scrollLeft + scrollAmount;
+      scrollRef.current.scrollTo({ left: scrollTo, behavior: "smooth" });
+    }
+  };
 
-const ADMIN_ID = "69b465c2c2feb16f5b950603";
-
-const properties = [
-
-/* ================= MUMBAI ================= */
-
-{
-title:"Luxury Sea View 3BHK",
-description:"Premium sea facing apartment",
-city:"Mumbai",
-location:"Bandra",
-price:25000000,
-area:"1200 sqft",
-bedrooms:3,
-bathrooms:2,
-amenities:["Gym","Lift","Parking","Security"],
-images:[
-{url:"https://images.unsplash.com/photo-1505693416388-ac5ce068fe85",public_id:"m1"},
-{url:"https://images.unsplash.com/photo-1493809842364-78817add7ffb",public_id:"m2"},
-{url:"https://images.unsplash.com/photo-1556912172-45b7abe8b7e1",public_id:"m3"},
-{url:"https://images.unsplash.com/photo-1584622781564-1d987f7333c1",public_id:"m4"},
-{url:"https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6",public_id:"m5"}
-],
-societyPlan:{url:"https://via.placeholder.com/400",public_id:"msp1"},
-homePlan:{url:"https://via.placeholder.com/400",public_id:"mhp1"},
-builder:ADMIN_ID
-},
-
-{
-title:"Modern 2BHK",
-description:"Fully furnished flat",
-city:"Mumbai",
-location:"Andheri",
-price:18000000,
-area:"900 sqft",
-bedrooms:2,
-bathrooms:2,
-amenities:["Lift","CCTV","Power Backup"],
-images:[
-{url:"https://images.unsplash.com/photo-1560185127-6ed189bf02f4",public_id:"m6"},
-{url:"https://images.unsplash.com/photo-1507089947368-19c1da9775ae",public_id:"m7"},
-{url:"https://images.unsplash.com/photo-1556909211-36987daf7b4d",public_id:"m8"},
-{url:"https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3",public_id:"m9"},
-{url:"https://images.unsplash.com/photo-1480074568708-e7b720bb3f09",public_id:"m10"}
-],
-societyPlan:{url:"https://via.placeholder.com/400",public_id:"msp2"},
-homePlan:{url:"https://via.placeholder.com/400",public_id:"mhp2"},
-builder:ADMIN_ID
-},
-
-{
-title:"Budget 1BHK",
-description:"Affordable flat for small family",
-city:"Mumbai",
-location:"Virar",
-price:6500000,
-area:"550 sqft",
-bedrooms:1,
-bathrooms:1,
-amenities:["Parking","Security"],
-images:[
-{url:"https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf",public_id:"m11"},
-{url:"https://images.unsplash.com/photo-1560448204-e02f11c3d0e2",public_id:"m12"},
-{url:"https://images.unsplash.com/photo-1556910103-1c02745aae4d",public_id:"m13"},
-{url:"https://images.unsplash.com/photo-1620626011761-996317b8d101",public_id:"m14"},
-{url:"https://images.unsplash.com/photo-1449844908441-8829872d2607",public_id:"m15"}
-],
-societyPlan:{url:"https://via.placeholder.com/400",public_id:"msp3"},
-homePlan:{url:"https://via.placeholder.com/400",public_id:"mhp3"},
-builder:ADMIN_ID
-},
-
-{
-title:"Premium Penthouse",
-description:"Penthouse with terrace garden",
-city:"Mumbai",
-location:"Powai",
-price:45000000,
-area:"2000 sqft",
-bedrooms:4,
-bathrooms:3,
-amenities:["Pool","Clubhouse","Gym"],
-images:[
-{url:"https://images.unsplash.com/photo-1616594039964-ae9021a400a0",public_id:"m16"},
-{url:"https://images.unsplash.com/photo-1615874959474-d609969a20ed",public_id:"m17"},
-{url:"https://images.unsplash.com/photo-1600489000022-c2086d79f9d4",public_id:"m18"},
-{url:"https://images.unsplash.com/photo-1582582494700-f8ce0b6c9c5d",public_id:"m19"},
-{url:"https://images.unsplash.com/photo-1512917774080-9991f1c4c750",public_id:"m20"}
-],
-societyPlan:{url:"https://via.placeholder.com/400",public_id:"msp4"},
-homePlan:{url:"https://via.placeholder.com/400",public_id:"mhp4"},
-builder:ADMIN_ID
-},
-
-{
-title:"Studio Apartment",
-description:"Compact studio flat",
-city:"Mumbai",
-location:"Dahisar",
-price:5000000,
-area:"400 sqft",
-bedrooms:1,
-bathrooms:1,
-amenities:["Lift"],
-images:[
-{url:"https://images.unsplash.com/photo-1598928506311-c55ded91a20c",public_id:"m21"},
-{url:"https://images.unsplash.com/photo-1600585152220-90363fe7e115",public_id:"m22"},
-{url:"https://images.unsplash.com/photo-1556909045-f5c7c16cda1f",public_id:"m23"},
-{url:"https://images.unsplash.com/photo-1629079447777-1e605162dc8d",public_id:"m24"},
-{url:"https://images.unsplash.com/photo-1568605114967-8130f3a36994",public_id:"m25"}
-],
-societyPlan:{url:"https://via.placeholder.com/400",public_id:"msp5"},
-homePlan:{url:"https://via.placeholder.com/400",public_id:"mhp5"},
-builder:ADMIN_ID
-},
-
-/* ================= PUNE ================= */
-
-{
-title:"IT Park 3BHK",
-description:"Spacious flat near IT hub",
-city:"Pune",
-location:"Hinjewadi",
-price:12000000,
-area:"1100 sqft",
-bedrooms:3,
-bathrooms:2,
-amenities:["Gym","Garden","Parking"],
-images:[
-{url:"https://images.unsplash.com/photo-1615873968403-89e068629265",public_id:"p1"},
-{url:"https://images.unsplash.com/photo-1560448204-603b3fc33ddc",public_id:"p2"},
-{url:"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c",public_id:"p3"},
-{url:"https://images.unsplash.com/photo-1552321554-5fefe8c9ef14",public_id:"p4"},
-{url:"https://images.unsplash.com/photo-1605146768851-eda79da39897",public_id:"p5"}
-],
-societyPlan:{url:"https://via.placeholder.com/400",public_id:"psp1"},
-homePlan:{url:"https://via.placeholder.com/400",public_id:"php1"},
-builder:ADMIN_ID
-},
-
-{
-title:"Luxury Villa",
-description:"Independent villa with garden",
-city:"Pune",
-location:"Baner",
-price:30000000,
-area:"2500 sqft",
-bedrooms:4,
-bathrooms:3,
-amenities:["Garden","Parking","Security"],
-images:[
-{url:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c",public_id:"p6"},
-{url:"https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde",public_id:"p7"},
-{url:"https://images.unsplash.com/photo-1600607687644-c7f34b3f3bde",public_id:"p8"},
-{url:"https://images.unsplash.com/photo-1600047509358-9dc75507daeb",public_id:"p9"},
-{url:"https://images.unsplash.com/photo-1600585154208-0f9b67d0f1b4",public_id:"p10"}
-],
-societyPlan:{url:"https://via.placeholder.com/400",public_id:"psp2"},
-homePlan:{url:"https://via.placeholder.com/400",public_id:"php2"},
-builder:ADMIN_ID
-},
-
-{
-title:"Affordable 2BHK",
-description:"Best for middle class family",
-city:"Pune",
-location:"Wagholi",
-price:7000000,
-area:"800 sqft",
-bedrooms:2,
-bathrooms:2,
-amenities:["Lift","Parking"],
-images:[
-{url:"https://images.unsplash.com/photo-1600585152915-d208bec867a1",public_id:"p11"},
-{url:"https://images.unsplash.com/photo-1600607687644-c7f34b3f3bde",public_id:"p12"},
-{url:"https://images.unsplash.com/photo-1600566752734-5d6a4e6c21e6",public_id:"p13"},
-{url:"https://images.unsplash.com/photo-1600607687218-ff4c0e91c6c4",public_id:"p14"},
-{url:"https://images.unsplash.com/photo-1600585154526-990dced4db0d",public_id:"p15"}
-],
-societyPlan:{url:"https://via.placeholder.com/400",public_id:"psp3"},
-homePlan:{url:"https://via.placeholder.com/400",public_id:"php3"},
-builder:ADMIN_ID
-},
-
-{
-title:"Premium Flat",
-description:"Modern society amenities",
-city:"Pune",
-location:"Kharadi",
-price:15000000,
-area:"1000 sqft",
-bedrooms:3,
-bathrooms:2,
-amenities:["Pool","Gym","Lift"],
-images:[
-{url:"https://images.unsplash.com/photo-1600585154363-67eb9e2e2099",public_id:"p16"},
-{url:"https://images.unsplash.com/photo-1600047509782-20d39509f26b",public_id:"p17"},
-{url:"https://images.unsplash.com/photo-1600566753053-8c5e5a33c6d8",public_id:"p18"},
-{url:"https://images.unsplash.com/photo-1600566752355-35792bedcfea",public_id:"p19"},
-{url:"https://images.unsplash.com/photo-1600585154784-77c8b81f9d89",public_id:"p20"}
-],
-societyPlan:{url:"https://via.placeholder.com/400",public_id:"psp4"},
-homePlan:{url:"https://via.placeholder.com/400",public_id:"php4"},
-builder:ADMIN_ID
-},
-
-{
-title:"1RK Flat",
-description:"Best for bachelor",
-city:"Pune",
-location:"Shivaji Nagar",
-price:4000000,
-area:"350 sqft",
-bedrooms:1,
-bathrooms:1,
-amenities:["Security"],
-images:[
-{url:"https://images.unsplash.com/photo-1600047509358-9dc75507daeb",public_id:"p21"},
-{url:"https://images.unsplash.com/photo-1600607687644-c7f34b3f3bde",public_id:"p22"},
-{url:"https://images.unsplash.com/photo-1600566753053-8c5e5a33c6d8",public_id:"p23"},
-{url:"https://images.unsplash.com/photo-1600566752355-35792bedcfea",public_id:"p24"},
-{url:"https://images.unsplash.com/photo-1600585154208-0f9b67d0f1b4",public_id:"p25"}
-],
-societyPlan:{url:"https://via.placeholder.com/400",public_id:"psp5"},
-homePlan:{url:"https://via.placeholder.com/400",public_id:"php5"},
-builder:ADMIN_ID
-},
-
-/* ================= NASHIK ================= */
-/* ================= NAGPUR ================= */
-/* ================= BANGALORE ================= */
-
-/// 👉 (Message limit mule full code khup motha hoil)
-/// 👉 Tu bolshil tar mi NEXT message mdhe remaining 15 properties deto 🙂
-
-];
-
-const seedData = async ()=>{
- try{
-  await Property.deleteMany();
-  await Property.insertMany(properties);
-  console.log("✅ 25 Properties Seeded");
-  process.exit();
- }catch(err){
-  console.log(err);
-  process.exit();
- }
+  return (
+    <div className="relative group px-2">
+      <button onClick={() => scroll("left")} className="absolute -left-2 md:-left-5 top-1/2 -translate-y-1/2 z-30 bg-white p-3 rounded-full shadow-2xl border border-slate-100 text-slate-800 opacity-0 group-hover:opacity-100 transition-all hover:bg-blue-600 hover:text-white hidden md:block active:scale-90">
+        <ChevronLeft className="w-6 h-6" />
+      </button>
+      <div ref={scrollRef} className="flex gap-6 overflow-x-auto no-scrollbar scroll-smooth pb-10 px-2">
+        {children}
+      </div>
+      <button onClick={() => scroll("right")} className="absolute -right-2 md:-right-5 top-1/2 -translate-y-1/2 z-30 bg-white p-3 rounded-full shadow-2xl border border-slate-100 text-slate-800 opacity-0 group-hover:opacity-100 transition-all hover:bg-blue-600 hover:text-white hidden md:block active:scale-90">
+        <ChevronRight className="w-6 h-6" />
+      </button>
+    </div>
+  );
 };
 
-seedData();
+// --- 2. PROPERTY CARD COMPONENT ---
+const PropertyCard = ({ property }) => {
+  const [currentImg, setCurrentImg] = useState(property?.images?.coverImage);
+  const [isHovered, setIsHovered] = useState(false);
+  const gallery = property?.images?.gallery || [];
+
+  useEffect(() => {
+    let interval;
+    if (isHovered && gallery.length > 0) {
+      let i = 0;
+      interval = setInterval(() => {
+        setCurrentImg(gallery[i % gallery.length]);
+        i++;
+      }, 1200);
+    } else {
+      setCurrentImg(property?.images?.coverImage);
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [isHovered, gallery, property?.images?.coverImage]);
+
+  return (
+    <div onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)} className="min-w-[300px] md:min-w-[380px] bg-white rounded-[2rem] shadow-lg border border-slate-100 overflow-hidden transition-all hover:shadow-2xl group">
+      <div className="h-56 overflow-hidden relative">
+        <img 
+          src={currentImg || "https://via.placeholder.com/400x300?text=Property"} 
+          alt={property.title} 
+          className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
+        />
+        <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md text-blue-700 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase">
+          {property.status?.replace("_", " ") || "New Launch"}
+        </div>
+      </div>
+      <div className="p-6">
+        <div className="flex justify-between items-start mb-2">
+          <h3 className="text-lg font-black text-slate-800 truncate pr-2 uppercase">{property.title}</h3>
+          <span className="text-emerald-600 font-black flex items-center text-sm">
+            <IndianRupee className="w-3.5 h-3.5" /> {property.startPrice || property.price?.starting}L - {property.endPrice || property.price?.upto}L
+          </span>
+        </div>
+        <div className="flex items-center gap-1 text-slate-500 mb-5">
+          <MapPin className="w-4 h-4 text-rose-500" />
+          <span className="text-xs font-bold">{property.area || property.location?.area}, {property.city || property.location?.city}</span>
+        </div>
+        <button className="w-full bg-slate-900 text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-[2px] hover:bg-blue-600 transition-all active:scale-[0.97]">
+            View Details
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// --- 3. MAIN HOME PAGE COMPONENT ---
+export default function HomePage() {
+  const [activeTab, setActiveTab] = useState("residential");
+  const [properties, setProperties] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch data from real database
+  useEffect(() => {
+    const fetchProperties = async () => {
+      try {
+        setLoading(true);
+        // ✅ Make sure this route returns the full nested object
+        const response = await axios.get("http://localhost:5000/api/property/allProperties"); 
+        setProperties(response.data);
+      } catch (error) {
+        console.error("Error fetching properties:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProperties();
+  }, []);
+
+  const filteredProperties = properties.filter(p => p.propertyType === activeTab);
+
+  const tabs = [
+    { id: "residential", label: "Residential", icon: <Home className="w-4 h-4"/> },
+    { id: "commercial", label: "Commercial", icon: <Building className="w-4 h-4"/> },
+    { id: "plot", label: "Plot", icon: <LandPlot className="w-4 h-4"/> },
+    { id: "build", label: "Build House", icon: <HousePlus className="w-4 h-4"/> },
+  ];
+
+  return (
+    <div className="min-h-screen bg-[#f8fafc]">
+      {/* Hero Section */}
+      <div className="bg-slate-900 pt-16 pb-36 px-4">
+        <div className="max-w-4xl mx-auto text-center mb-10 animate-in fade-in slide-in-from-top-4 duration-700">
+            <h1 className="text-4xl md:text-6xl font-black text-white mb-4 tracking-tight">Find Your <span className="text-blue-500">Dream</span> Home</h1>
+            <p className="text-slate-400 text-lg font-medium">Over 10,000+ properties waiting for you.</p>
+        </div>
+
+        <div className="max-w-5xl mx-auto">
+          {/* Tabs */}
+          <div className="flex gap-1 mb-0 overflow-x-auto no-scrollbar">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-6 py-4 rounded-t-2xl font-bold text-sm transition-all whitespace-nowrap ${
+                  activeTab === tab.id ? "bg-white text-blue-700 shadow-[-5px_-5px_10px_rgba(0,0,0,0.1)]" : "bg-slate-800/50 text-slate-400 hover:text-white"
+                }`}
+              >
+                {tab.icon} {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Search Bar */}
+          <div className="bg-white p-5 rounded-b-3xl rounded-tr-3xl shadow-2xl flex flex-col md:flex-row gap-4 items-center relative z-10">
+            <div className="flex-1 w-full relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+              <input 
+                type="text" 
+                placeholder={`Search for ${activeTab} in Pune, Mumbai...`}
+                className="w-full pl-12 pr-4 py-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 font-semibold text-slate-700 outline-none"
+              />
+            </div>
+            <button className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-12 py-4 rounded-2xl font-bold shadow-xl shadow-blue-200 transition-all active:scale-95">
+              Search Now
+            </button>
+          </div>
+
+          {/* Filter Box */}
+          <div className="bg-white/80 backdrop-blur-md mt-4 p-5 rounded-3xl border border-white shadow-xl grid grid-cols-2 md:grid-cols-4 gap-6 animate-in fade-in zoom-in duration-500">
+             <FilterSelect label="City" options={["Pune", "Mumbai", "Nashik"]} />
+             <FilterSelect label="Budget" options={["10L - 50L", "50L - 1Cr", "Above 1Cr"]} />
+             
+             {activeTab === "residential" && (
+                <>
+                  <FilterSelect label="BHK Type" options={["1RK/1BHK", "2BHK", "3BHK", "4BHK+"]} />
+                  <FilterSelect label="Type" options={["Apartment", "Villa", "Bungalow"]} />
+                </>
+             )}
+             {(activeTab === "commercial" || activeTab === "plot") && (
+                <>
+                  <FilterSelect label="Area (sq.ft)" options={["Under 1000", "1000 - 5000", "Above 5000"]} />
+                  <FilterSelect label="Sub-Category" options={["Shop", "Office", "Plot"]} />
+                </>
+             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Sections */}
+      <div className="max-w-7xl mx-auto px-4 -mt-16 pb-32 relative z-20">
+        
+        {loading ? (
+          <div className="flex flex-col justify-center items-center py-20 bg-white rounded-3xl shadow-sm border border-slate-100">
+             <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" />
+             <span className="font-black text-slate-400 uppercase tracking-widest text-xs">Loading Properties...</span>
+          </div>
+        ) : (
+          <>
+            {/* Upcoming Projects Section */}
+            {/* --- UPCOMING PROJECTS SECTION --- */}
+            <section className="mb-20">
+              <div className="flex items-end justify-between mb-8 px-4">
+                <div>
+                  <h2 className="text-3xl font-black text-slate-800 tracking-tight underline decoration-blue-500 decoration-4">
+                    Upcoming Projects
+                  </h2>
+                  <p className="text-slate-500 font-bold text-sm">Future homes under construction</p>
+                </div>
+                <button className="text-blue-600 font-bold text-sm bg-blue-50 px-4 py-2 rounded-full hover:bg-blue-100 transition-colors">
+                  See All
+                </button>
+              </div>
+              
+              <PropertySlider>
+                {/* ✅ Fakt 'under_construction' status aslelya properties filter kara */}
+                {filteredProperties.filter(p => 
+                  p.residentialDetails?.status === "under_construction" || 
+                  p.commercialDetails?.status === "under_construction"
+                ).length > 0 ? (
+                  filteredProperties
+                    .filter(p => 
+                      p.residentialDetails?.status === "under_construction" || 
+                      p.commercialDetails?.status === "under_construction"
+                    )
+                    .map((item) => (
+                      <PropertyCard key={item._id} property={item} />
+                    ))
+                ) : (
+                  <div className="w-full text-center py-10 text-slate-400 font-bold">
+                    No upcoming projects found in {activeTab}
+                  </div>
+                )}
+              </PropertySlider>
+            </section>
+
+            {/* Newly Launched Section */}
+            <section>
+              <div className="flex items-end justify-between mb-8 px-4">
+                <div>
+                    <h2 className="text-3xl font-black text-slate-800 tracking-tight underline decoration-emerald-500 decoration-4">Newly Launched</h2>
+                    <p className="text-slate-500 font-bold text-sm">Ready properties from last 15 days</p>
+                </div>
+                <button className="text-blue-600 font-bold text-sm bg-blue-50 px-4 py-2 rounded-full hover:bg-blue-100 transition-colors">See All</button>
+              </div>
+              
+              <PropertySlider>
+                {/* Same data or different API filter can be used here */}
+                {filteredProperties.slice().reverse().map((item) => (
+                  <PropertyCard key={item._id + "new"} property={item} />
+                ))}
+              </PropertySlider>
+            </section>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// --- HELPER FILTER COMPONENT ---
+function FilterSelect({ label, options }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-[10px] font-black text-slate-400 uppercase tracking-[2px] ml-1">{label}</label>
+      <select className="bg-slate-50 border-none rounded-xl py-2.5 px-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 cursor-pointer outline-none">
+        {options.map(opt => <option key={opt}>{opt}</option>)}
+      </select>
+    </div>
+  );
+}

@@ -9,7 +9,7 @@ const residentialSchema = new mongoose.Schema({
 
   bhkTypes: [
     {
-      type: {
+      bhk_type: {
         type: String, // 1RK, 1BHK, 2BHK...
       },
       area: Number,

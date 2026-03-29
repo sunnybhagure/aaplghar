@@ -2,11 +2,34 @@ const Property = require("../models/property/propertyMain");
 
 exports.addProperty = async (req, res) => {
   try {
-    console.log("BODY:", JSON.stringify(req.body, null, 2));
-    console.log("FILES:", JSON.stringify(req.files, null, 2));
+    console.log("BODY RECV:", req.body);
     
     const body = req.body;
     const files = req.files || {};
+
+    const floorPlansArray = [];
+
+    // BHK plans check kara ani array madhye object banvun taka
+    ["1RK", "1BHK", "2BHK", "3BHK", "4BHK", "5BHK"].forEach((bhk) => {
+      const fieldName = `${bhk}_plan`;
+      if (files[fieldName]) {
+        floorPlansArray.push({
+          bhkType: bhk,
+          image: files[fieldName][0].path // Cloudinary chi link
+        });
+      }
+    });
+
+    // --- HELPER FUNCTION: String to Array Conversion ---
+    // Jar data JSON string asel tar parse karel, nasel tar split karel
+    const parseArray = (data) => {
+      if (!data) return [];
+      try {
+        return JSON.parse(data); // Frontend varun JSON stringify aala tar
+      } catch (e) {
+        return data.split(",").map(item => item.trim()); // Normal comma separated aala tar
+      }
+    };
 
     // 1. Basic Common Data Build
     let newProperty = {
@@ -16,32 +39,35 @@ exports.addProperty = async (req, res) => {
         area: body.area 
       },
       description: body.description,
-      specification: body.specification,
-      propertyType: body.propertyType,
+      // ✅ Updated for Multi-Input Array
+      specification: parseArray(body.specification),
+      amenities: parseArray(body.amenities),
+      nearbyLocalities: parseArray(body.localities),
+      
+      propertyType: body.propertyType?.toLowerCase().trim(),      
       price: {
         starting: body.startPrice ? Number(body.startPrice) : 0,
         upto: body.endPrice ? Number(body.endPrice) : 0,
       },
-      amenities: body.amenities ? body.amenities.split(",") : [],
-      nearbyLocalities: body.localities ? body.localities.split(",") : [],
       images: {
         coverImage: files.coverImage?.[0]?.path || "",
         gallery: files.gallery ? files.gallery.map((f) => f.path) : [],
         societyPlan: files.societyPlan?.[0]?.path || "",
+        floorPlans: floorPlansArray
       },
-      builder: req.admin?._id || null, // Admin ID check
+      builder: req.admin?._id || null,
     };
 
     // 2. Conditional Details (Property Type pramane)
     
     // 🏡 RESIDENTIAL LOGIC
+   // 🏡 RESIDENTIAL LOGIC
     if (body.propertyType === "residential") {
       const bhkTypes = [];
       ["1RK", "1BHK", "2BHK", "3BHK", "4BHK", "5BHK"].forEach((bhk) => {
-        // Corrected Template Literal and removed 'gold' word
         if (body[`${bhk}_area`]) { 
           bhkTypes.push({
-            type: bhk,
+            bhk_type: bhk,
             area: Number(body[`${bhk}_area`]),
             planImage: files[`${bhk}_plan`]?.[0]?.path || null, 
           });
@@ -49,11 +75,21 @@ exports.addProperty = async (req, res) => {
       });
 
       newProperty.residentialDetails = {
-        propertySubType: body.resType?.toLowerCase(),
-        status: body.status?.toLowerCase().replace(/\s/g, "_"),
+        // .trim().toLowerCase() vapra mhanje "Apartment " cha "apartment" hoil
+        propertySubType: body.resType?.toString().trim().toLowerCase(), 
+        
+        // "Ready" -> "ready", "Under Construction" -> "under_construction"
+        status: body.status?.toString().trim().toLowerCase().replace(/\s+/g, "_"), 
+        
         bhkTypes: bhkTypes,
       };
-    } 
+
+      // Validation check (Optional but safe)
+      const allowedSubTypes = ["villa", "apartment", "penthouse", "bungalow", "duplex", "rowhouse"];
+      if (!allowedSubTypes.includes(newProperty.residentialDetails.propertySubType)) {
+          delete newProperty.residentialDetails.propertySubType; // Jar match nahi jhala tar field kadun taka nahitar error yeil
+      }
+    }
     
     // 🏢 COMMERCIAL LOGIC
     else if (body.propertyType === "commercial") {
@@ -74,7 +110,6 @@ exports.addProperty = async (req, res) => {
     }
 
     // ✅ SAVE TO DB
-    console.log("FINAL DATA TO SAVE:", JSON.stringify(newProperty, null, 2));
     const property = await Property.create(newProperty);
 
     res.status(201).json({
@@ -84,10 +119,23 @@ exports.addProperty = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("FULL ERROR:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message,
+    console.log("❌ CRITICAL ERROR ❌");
+    // Ha logic error la readable banvel
+    console.log(JSON.parse(JSON.stringify(error, Object.getOwnPropertyNames(error))));
+    
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
     });
+}
+}; 
+
+// Example Route in Backend
+exports.getAllProperties = async (req, res) => {
+  try {
+    const properties = await Property.find(); // MongoDB model
+    res.json(properties);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };

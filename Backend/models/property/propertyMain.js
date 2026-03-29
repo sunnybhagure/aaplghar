@@ -30,7 +30,7 @@ const propertySchema = new mongoose.Schema({
 
   description: String,
   
-  specification: String,
+  specification: [String],
 
 
   amenities: [String],
@@ -39,7 +39,13 @@ const propertySchema = new mongoose.Schema({
   images: {
     coverImage: String,
     gallery: [String],
-    societyPlan: String
+    societyPlan: String,
+    floorPlans: [
+    {
+      bhkType: String, // e.g., "1BHK"
+      image: String    // Cloudinary URL
+    }
+  ]
   },
 
   // 👇 MAIN CONNECTION
