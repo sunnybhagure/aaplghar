@@ -1,27 +1,12 @@
 const mongoose = require("mongoose");
 
 const residentialSchema = new mongoose.Schema({
-
-  propertySubType: {
-    type: String,
-    enum: ["villa", "apartment", "penthouse", "bungalow", "duplex", "rowhouse"]
+  propertySubTypes: [String], 
+  // Dynamic keys handle karnyathi Mixed type vaprava lagel
+  config: { 
+    type: mongoose.Schema.Types.Mixed 
   },
-
-  bhkTypes: [
-    {
-      bhk_type: {
-        type: String, // 1RK, 1BHK, 2BHK...
-      },
-      area: Number,
-      planImage: String
-    }
-  ],
-
-  status: {
-    type: String,
-    enum: ["under_construction", "ready"]
-  }
-
+  status: { type: String, enum: ["under_construction", "ready"] }
 });
 
 module.exports = residentialSchema;

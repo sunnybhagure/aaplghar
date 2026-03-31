@@ -40,12 +40,6 @@ const propertySchema = new mongoose.Schema({
     coverImage: String,
     gallery: [String],
     societyPlan: String,
-    floorPlans: [
-    {
-      bhkType: String, // e.g., "1BHK"
-      image: String    // Cloudinary URL
-    }
-  ]
   },
 
   // 👇 MAIN CONNECTION

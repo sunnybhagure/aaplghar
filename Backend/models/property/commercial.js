@@ -1,19 +1,15 @@
 const mongoose = require("mongoose");
 
 const commercialSchema = new mongoose.Schema({
-  propertySubType: {
-    type: String,
-    enum: ["office", "shop", "showroom", "warehouse"]
-  },
-
-  area: Number,
-
+  propertySubTypes: [String], // Shop, Office etc
+  details: [
+    {
+      subType: String,
+      area: Number,
+      planImage: String
+    }
+  ],
   parking: Boolean,
-
-  status: {
-    type: String,
-    enum: ["under_construction", "ready"]
-  }
+  status: { type: String, enum: ["under_construction", "ready"] }
 });
-
 module.exports = commercialSchema;

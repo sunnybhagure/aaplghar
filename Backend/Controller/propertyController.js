@@ -1,134 +1,265 @@
 const Property = require("../models/property/propertyMain");
 
+
 exports.addProperty = async (req, res) => {
   try {
-    console.log("BODY RECV:", req.body);
-    
     const body = req.body;
-    const files = req.files || {};
+    const allFiles = req.files || [];
 
-    const floorPlansArray = [];
+    const getFile = (fieldname) => allFiles.find(f => f.fieldname === fieldname);
+    const getFiles = (fieldname) => allFiles.filter(f => f.fieldname === fieldname).map(f => f.path);
 
-    // BHK plans check kara ani array madhye object banvun taka
-    ["1RK", "1BHK", "2BHK", "3BHK", "4BHK", "5BHK"].forEach((bhk) => {
-      const fieldName = `${bhk}_plan`;
-      if (files[fieldName]) {
-        floorPlansArray.push({
-          bhkType: bhk,
-          image: files[fieldName][0].path // Cloudinary chi link
-        });
-      }
-    });
-
-    // --- HELPER FUNCTION: String to Array Conversion ---
-    // Jar data JSON string asel tar parse karel, nasel tar split karel
-    const parseArray = (data) => {
-      if (!data) return [];
+    // Dynamic Parsing Logic
+    const parseData = (data) => {
+      if (!data) return []; 
       try {
-        return JSON.parse(data); // Frontend varun JSON stringify aala tar
+        return typeof data === 'string' ? JSON.parse(data) : data;
       } catch (e) {
-        return data.split(",").map(item => item.trim()); // Normal comma separated aala tar
+        return [];
       }
     };
 
-    // 1. Basic Common Data Build
+    const config = parseData(body.configData) || {}; // Always an object
+
     let newProperty = {
       title: body.title,
-      location: { 
-        city: body.city, 
-        area: body.area 
-      },
+      location: { city: body.city, area: body.area },
       description: body.description,
-      // ✅ Updated for Multi-Input Array
-      specification: parseArray(body.specification),
-      amenities: parseArray(body.amenities),
-      nearbyLocalities: parseArray(body.localities),
-      
-      propertyType: body.propertyType?.toLowerCase().trim(),      
+      specification: parseData(body.specification),
+      amenities: parseData(body.amenities),
+      nearbyLocalities: parseData(body.localities),
+      propertyType: body.propertyType,
       price: {
-        starting: body.startPrice ? Number(body.startPrice) : 0,
-        upto: body.endPrice ? Number(body.endPrice) : 0,
+        starting: Number(body.startPrice) || 0,
+        upto: Number(body.endPrice) || 0,
       },
       images: {
-        coverImage: files.coverImage?.[0]?.path || "",
-        gallery: files.gallery ? files.gallery.map((f) => f.path) : [],
-        societyPlan: files.societyPlan?.[0]?.path || "",
-        floorPlans: floorPlansArray
+        coverImage: getFile('coverImage')?.path || "",
+        gallery: getFiles('gallery'),
+        societyPlan: getFile('societyPlan')?.path || "",
       },
-      builder: req.admin?._id || null,
+      builder: req.admin?._id,
     };
 
-    // 2. Conditional Details (Property Type pramane)
-    
-    // 🏡 RESIDENTIAL LOGIC
-   // 🏡 RESIDENTIAL LOGIC
+    // --- CASE 1: RESIDENTIAL ---
     if (body.propertyType === "residential") {
-      const bhkTypes = [];
-      ["1RK", "1BHK", "2BHK", "3BHK", "4BHK", "5BHK"].forEach((bhk) => {
-        if (body[`${bhk}_area`]) { 
-          bhkTypes.push({
-            bhk_type: bhk,
-            area: Number(body[`${bhk}_area`]),
-            planImage: files[`${bhk}_plan`]?.[0]?.path || null, 
+      const resSubTypes = parseData(body.resSubTypes); // Frontend check: 'resSubTypes' key barobar aahe ka?
+      const processedRes = {};
+
+      if (Array.isArray(resSubTypes)) {
+        resSubTypes.forEach((sub) => {
+          processedRes[sub] = {};
+          const bhkConfigs = config[sub] || {};
+          
+          Object.keys(bhkConfigs).forEach((bhk) => {
+            const variants = bhkConfigs[bhk];
+            if (Array.isArray(variants)) {
+              processedRes[sub][bhk] = variants.map((variant, idx) => ({
+                area: variant.area,
+                planImage: getFile(`plan_${sub}_${bhk}_${idx}`)?.path || ""
+              }));
+            }
           });
-        }
-      });
+        });
+      }
 
       newProperty.residentialDetails = {
-        // .trim().toLowerCase() vapra mhanje "Apartment " cha "apartment" hoil
-        propertySubType: body.resType?.toString().trim().toLowerCase(), 
-        
-        // "Ready" -> "ready", "Under Construction" -> "under_construction"
-        status: body.status?.toString().trim().toLowerCase().replace(/\s+/g, "_"), 
-        
-        bhkTypes: bhkTypes,
-      };
-
-      // Validation check (Optional but safe)
-      const allowedSubTypes = ["villa", "apartment", "penthouse", "bungalow", "duplex", "rowhouse"];
-      if (!allowedSubTypes.includes(newProperty.residentialDetails.propertySubType)) {
-          delete newProperty.residentialDetails.propertySubType; // Jar match nahi jhala tar field kadun taka nahitar error yeil
-      }
-    }
-    
-    // 🏢 COMMERCIAL LOGIC
-    else if (body.propertyType === "commercial") {
-      newProperty.commercialDetails = {
-        propertySubType: body.resType?.toLowerCase(),
-        area: body.commercialArea ? Number(body.commercialArea) : 0,
-        parking: body.parking === "on" || body.parking === "true" || body.parking === true,
+        propertySubTypes: resSubTypes,
+        config: processedRes,
         status: body.status?.toLowerCase().replace(/\s/g, "_"),
       };
-    } 
-    
-    // 🌄 PLOT LOGIC
-    else if (body.propertyType === "plot") {
-      newProperty.plotDetails = {
-        plotType: body.plotType,
-        area: body.plotArea ? Number(body.plotArea) : 0,
+    }
+
+    // --- CASE 2: COMMERCIAL ---
+    else if (body.propertyType === "commercial") {
+      const commSubTypes = parseData(body.commSubTypes);
+      const processedComm = {};
+
+      if (Array.isArray(commSubTypes)) {
+        commSubTypes.forEach((sub) => {
+          const variants = config[sub];
+          if (Array.isArray(variants)) {
+            processedComm[sub] = variants.map((variant, idx) => ({
+              area: variant.area,
+              planImage: getFile(`plan_${sub}_${idx}`)?.path || ""
+            }));
+          }
+        });
+      }
+
+      newProperty.commercialDetails = {
+        propertySubTypes: commSubTypes,
+        config: processedComm,
+        parking: body.parking === "true",
+        status: body.status?.toLowerCase().replace(/\s/g, "_"),
       };
     }
 
-    // ✅ SAVE TO DB
-    const property = await Property.create(newProperty);
+    // --- CASE 3: PLOT ---
+    else if (body.propertyType === "plot") {
+      const plotSubTypes = parseData(body.plotSubTypes);
+      const processedPlot = {};
 
-    res.status(201).json({
-      success: true,
-      message: "Property added successfully",
-      data: property,
-    });
+      if (Array.isArray(plotSubTypes)) {
+        plotSubTypes.forEach((sub) => {
+          const variants = config[sub];
+          if (Array.isArray(variants)) {
+            processedPlot[sub] = variants.map((variant, idx) => ({
+              area: variant.area,
+              length: variant.length,
+              width: variant.width,
+              planImage: getFile(`plan_${sub}_${idx}`)?.path || ""
+            }));
+          }
+        });
+      }
+
+      newProperty.plotDetails = {
+        plotTypes: plotSubTypes,
+        config: processedPlot,
+      };
+    }
+
+    const property = await Property.create(newProperty);
+    res.status(201).json({ success: true, data: property });
 
   } catch (error) {
-    console.log("❌ CRITICAL ERROR ❌");
-    // Ha logic error la readable banvel
-    console.log(JSON.parse(JSON.stringify(error, Object.getOwnPropertyNames(error))));
-    
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
+    console.error("MASTER CONTROLLER ERROR:", error);
+    res.status(500).json({ success: false, message: "Server Error: " + error.message });
+  }
+};
+
+exports.addProperty = async (req, res) => {
+  try {
+    const body = req.body;
+    const allFiles = req.files || [];
+
+    const getFile = (fieldname) => allFiles.find(f => f.fieldname === fieldname);
+    const getFiles = (fieldname) => allFiles.filter(f => f.fieldname === fieldname).map(f => f.path);
+
+    // Dynamic Parsing Logic
+    const parseData = (data) => {
+      if (!data) return []; 
+      try {
+        return typeof data === 'string' ? JSON.parse(data) : data;
+      } catch (e) {
+        return [];
+      }
+    };
+
+    const config = parseData(body.configData) || {}; // Always an object
+
+    let newProperty = {
+      title: body.title,
+      location: { city: body.city, area: body.area },
+      description: body.description,
+      specification: parseData(body.specification),
+      amenities: parseData(body.amenities),
+      nearbyLocalities: parseData(body.localities),
+      propertyType: body.propertyType,
+      price: {
+        starting: Number(body.startPrice) || 0,
+        upto: Number(body.endPrice) || 0,
+      },
+      images: {
+        coverImage: getFile('coverImage')?.path || "",
+        gallery: getFiles('gallery'),
+        societyPlan: getFile('societyPlan')?.path || "",
+      },
+      builder: req.admin?._id,
+    };
+
+   // --- CASE 1: RESIDENTIAL (Example) ---
+if (body.propertyType === "residential") {
+  const resSubTypes = parseData(body.resSubTypes) || [];
+  const processedRes = {};
+
+  if (Array.isArray(resSubTypes)) {
+    resSubTypes.forEach((sub) => {
+      processedRes[sub] = {};
+      const bhkConfigs = config[sub] || {};
+      
+      Object.keys(bhkConfigs).forEach((bhk) => {
+        const variants = bhkConfigs[bhk];
+        if (Array.isArray(variants)) {
+          processedRes[sub][bhk] = variants.map((v, idx) => ({
+            area: v.area,
+            price: Number(v.price) || 0, // Individual Price logic
+            planImage: getFile(`plan_${sub}_${bhk}_${idx}`)?.path || ""
+          }));
+        }
+      });
     });
+  }
+  newProperty.residentialDetails = {
+    propertySubTypes: resSubTypes,
+    config: processedRes,
+    status: body.status?.toLowerCase().replace(/\s/g, "_"),
+  };
 }
-}; 
+
+
+// Commercial ani Plot sathi pan 'price: Number(v.price)' asach add kara.
+
+    // --- CASE 2: COMMERCIAL ---
+    else if (body.propertyType === "commercial") {
+      const commSubTypes = parseData(body.commSubTypes);
+      const processedComm = {};
+
+      if (Array.isArray(commSubTypes)) {
+        commSubTypes.forEach((sub) => {
+          const variants = config[sub];
+          if (Array.isArray(variants)) {
+            processedComm[sub] = variants.map((variant, idx) => ({
+              area: variant.area,
+              planImage: getFile(`plan_${sub}_${idx}`)?.path || ""
+            }));
+          }
+        });
+      }
+
+      newProperty.commercialDetails = {
+        propertySubTypes: commSubTypes,
+        config: processedComm,
+        parking: body.parking === "true",
+        status: body.status?.toLowerCase().replace(/\s/g, "_"),
+      };
+    }
+
+    // --- CASE 3: PLOT ---
+    else if (body.propertyType === "plot") {
+      const plotSubTypes = parseData(body.plotSubTypes);
+      const processedPlot = {};
+
+      if (Array.isArray(plotSubTypes)) {
+        plotSubTypes.forEach((sub) => {
+          const variants = config[sub];
+          if (Array.isArray(variants)) {
+            processedPlot[sub] = variants.map((variant, idx) => ({
+              area: variant.area,
+              length: variant.length,
+              width: variant.width,
+              planImage: getFile(`plan_${sub}_${idx}`)?.path || ""
+            }));
+          }
+        });
+      }
+
+      newProperty.plotDetails = {
+        plotTypes: plotSubTypes,
+        config: processedPlot,
+      };
+    }
+
+    const property = await Property.create(newProperty);
+    res.status(201).json({ success: true, data: property });
+
+  } catch (error) {
+    console.error("MASTER CONTROLLER ERROR:", error);
+    res.status(500).json({ success: false, message: "Server Error: " + error.message });
+  }
+};
+
 
 // Example Route in Backend
 exports.getAllProperties = async (req, res) => {
@@ -137,5 +268,29 @@ exports.getAllProperties = async (req, res) => {
     res.json(properties);
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+};
+
+// Get Single Property Details
+exports.getPropertyById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check kar ki ID valid aahe ka
+    if (!id) {
+      return res.status(400).json({ message: "Property ID is required" });
+    }
+
+    // populate("builder") mule admin che nav/details miltil
+    const property = await Property.findById(id).populate("builder", "name email mobile");
+
+    if (!property) {
+      return res.status(404).json({ message: "Property not found" });
+    }
+
+    res.status(200).json(property);
+  } catch (error) {
+    console.error("Error in getPropertyById:", error);
+    res.status(500).json({ message: "Internal Server Error", error: error.message });
   }
 };
