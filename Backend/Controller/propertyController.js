@@ -1,4 +1,8 @@
+const mongoose = require('mongoose');
+
+
 const Property = require("../models/property/propertyMain");
+
 
 
 exports.addProperty = async (req, res) => {
@@ -293,4 +297,59 @@ exports.getPropertyById = async (req, res) => {
     console.error("Error in getPropertyById:", error);
     res.status(500).json({ message: "Internal Server Error", error: error.message });
   }
+};
+
+// 1. Specific Admin chya srv properties ghenyasathi
+exports.getPropertiesByBuilder = async (req, res) => {
+    try {
+        const { builderId } = req.params;
+
+        // String ID la MongoDB ObjectId madhe convert karne
+        if (!mongoose.Types.ObjectId.isValid(builderId)) {
+            return res.status(400).json({ success: false, message: "Invalid Builder ID format" });
+        }
+
+        // Query madhe convert keleli ID vapra
+        const properties = await Property.find({ 
+            builder: new mongoose.Types.ObjectId(builderId) 
+        }).sort({ createdAt: -1 });
+
+        if (!properties || properties.length === 0) {
+            return res.status(200).json({ success: true, data: [], message: "No properties found" });
+        }
+
+        res.status(200).json({ success: true, data: properties });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 2. Property Update karnyasathi
+exports.updateProperty = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updatedData = req.body;
+
+        const property = await Property.findByIdAndUpdate(id, updatedData, { new: true });
+
+        if (!property) return res.status(404).json({ message: "Property not found" });
+        
+        res.status(200).json({ success: true, data: property });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 3. Property Delete karnyasathi
+exports.deleteProperty = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const property = await Property.findByIdAndDelete(id);
+
+        if (!property) return res.status(404).json({ message: "Property not found" });
+
+        res.status(200).json({ success: true, message: "Property deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 };

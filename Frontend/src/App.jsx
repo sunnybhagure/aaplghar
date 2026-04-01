@@ -10,6 +10,7 @@ import AdminRegister from './Pages/AdminRegister'
 import AdminDashboard from './Pages/AdminDashboard'
 import PropertyForm from './Pages/addProperty.jsx'
 import PropertyShow from './Pages/propertyShow.jsx'
+import YourProperties from './Pages/yourProperty.jsx'
 
 function App() {
   
@@ -27,6 +28,7 @@ function App() {
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
         <Route path="/add-property" element={<PropertyForm />} />
         <Route path="/property/:id" element={<PropertyShow />} />
+        <Route path="/my-properties" element={<YourProperties />} />
        
 
       </Routes>

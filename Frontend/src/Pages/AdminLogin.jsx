@@ -27,13 +27,23 @@ function AdminLogin() {
 
       const data = await res.json()
 
-      if(data.success){
-        localStorage.setItem("adminToken",data.token)
-        navigate("/admin-dashboard")
-      }else{
-        setError(data.message || "Login failed")
-      }
+     if (data.success) {
+    // 1. टोकन सेव्ह करा
+    localStorage.setItem("adminToken", data.token);
 
+    // 2. Builder चा ID सेव्ह करा (खूप महत्त्वाचे)
+    // तुझ्या API कडून जर 'builder' की येत असेल तर data.builder._id वापर
+    const builderId = data.builder?._id || data.admin?._id || data.user?._id;
+    localStorage.setItem("adminId", builderId);
+
+    // 3. पूर्ण ऑब्जेक्ट सेव्ह करा (भविष्यात नावासाठी किंवा ईमेलसाठी लागेल)
+    localStorage.setItem("adminUser", JSON.stringify(data.builder || data.admin));
+
+    // डॅशबोर्डवर नेणे
+    navigate("/admin-dashboard");
+    } else {
+        setError(data.message || "Login failed");
+    }
     }catch(err){
       setError("Server error")
     }

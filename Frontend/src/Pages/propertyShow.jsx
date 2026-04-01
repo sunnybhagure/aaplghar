@@ -1,23 +1,48 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { 
   MapPin, IndianRupee, Calendar, User, CheckCircle2, 
-  Loader2, ChevronDown, ChevronUp, X, LayoutDashboard, Building2
+  Loader2, ChevronDown, ChevronUp, X, LayoutDashboard, Building2,
+  Trash2, Edit3 
 } from "lucide-react";
 
 export default function PropertyShow() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeImg, setActiveImg] = useState("");
   const [openPlanKey, setOpenPlanKey] = useState(null); 
   const [showAllMedia, setShowAllMedia] = useState(false);
 
+  // LOGIC: Current Login असलेल्या युजरचा ID मिळवणे
+  const currentAdminId = localStorage.getItem("adminId");
+  
+  // LOGIC: जर प्रॉपर्टी बनवणारा आणि लॉगिन असलेला आयडी एकच असेल तरच True होईल
+  const isAdminOwner = property?.createdBy === currentAdminId;
+
   useEffect(() => {
     const fetchDetails = async () => {
       try {
         const res = await axios.get(`http://localhost:5000/api/property/getProperty/${id}`);
+
+       // १. आधी खात्री करा की property लोड झाली आहे
+if (property) {
+  const currentAdminId = localStorage.getItem("adminId");
+  
+  // २. डेटाबेस मधील आयडी नेमका कुठे आहे ते तपासा (उदा. property.createdBy किंवा property.builderId)
+  const ownerIdInDB = property.createdBy || property.builderId || property.admin;
+
+  const isAdminOwner = ownerIdInDB && currentAdminId && 
+                       String(ownerIdInDB) === String(currentAdminId);
+
+  console.log("Checking match:", {
+    db: ownerIdInDB,
+    local: currentAdminId,
+    match: isAdminOwner
+  });
+}
         const data = res.data.data || res.data;
         setProperty(data);
         setActiveImg(data.images?.coverImage);
@@ -29,6 +54,19 @@ export default function PropertyShow() {
     };
     fetchDetails();
   }, [id]);
+
+  const handleDelete = async () => {
+    if(window.confirm("Are you sure you want to delete this property?")) {
+      try {
+        await axios.delete(`http://localhost:5000/api/property/delete/${property._id}`);
+        alert("Property deleted successfully!");
+        navigate("/your-properties"); // किंवा तुमच्या डॅशबोर्डचा मार्ग
+      } catch (err) {
+        console.error("Delete failed", err);
+        alert("Failed to delete property");
+      }
+    }
+  };
 
   const formatPrice = (num) => {
     const val = Number(num);
@@ -59,17 +97,35 @@ export default function PropertyShow() {
   return (
     <div className="min-h-screen bg-[#f8fafc] pb-20 text-slate-900">
       
+      {/* 🟢 ADMIN CONTROLS: फक्त प्रॉपर्टी मालकाला दिसणार */}
+      {isAdminOwner && (
+        <div className="bg-white border-b border-slate-200">
+          <div className="max-w-6xl mx-auto px-4 py-3 flex gap-3 justify-end">
+            <button 
+              onClick={() => navigate(`/update-property/${property._id}`)}
+              className="flex items-center gap-2 bg-slate-900 text-white px-5 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 transition-all"
+            >
+              <Edit3 className="w-3.5 h-3.5" /> Update Property
+            </button>
+            <button 
+              onClick={handleDelete}
+              className="flex items-center gap-2 bg-rose-600 text-white px-5 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg shadow-rose-100"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Delete
+            </button>
+          </div>
+        </div>
+      )}
+      
       {/* 1. HEADER SECTION */}
       <div className="max-w-6xl mx-auto px-4 pt-6 pb-4">
         <div className="flex flex-col gap-1">
-          {/* Increased text-size from 9px to 11px */}
           <div className="flex items-center gap-2 text-slate-400 font-bold text-[11px] uppercase tracking-widest">
             <User className="w-3.5 h-3.5" /> {property.builder?.name || "Aaple Ghar Partner"} | <Calendar className="w-3.5 h-3.5" /> {new Date(property.createdAt).toLocaleDateString()}
           </div>
           <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight leading-none">{property.title}</h1>
           <div className="flex items-center gap-2 mt-1">
             <MapPin className="w-3.5 h-3.5 text-rose-500" />
-            {/* Increased text-size from 11px to 13px */}
             <span className="font-bold text-[13px] text-slate-500">{property.location?.area}, {property.location?.city}</span>
           </div>
         </div>
@@ -147,7 +203,6 @@ export default function PropertyShow() {
             <h4 className="text-[11px] font-black text-slate-800 uppercase mb-4 tracking-widest">Specifications</h4>
             <div className="space-y-2.5">
               {property.specification?.map((spec, i) => (
-                /* Increased font size to text-[13px] */
                 <div key={i} className="text-[13px] font-bold text-slate-500 bg-slate-50/50 p-4 rounded-xl flex items-center gap-3 border border-slate-100/50">
                   <CheckCircle2 className="w-4.5 h-4.5 text-blue-500 shrink-0" /> <span className="capitalize">{spec}</span>
                 </div>
@@ -157,7 +212,6 @@ export default function PropertyShow() {
 
           <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
             <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Project Overview</h4>
-            {/* Increased font size from 13px to 14px */}
             <p className="text-[14px] text-slate-600 leading-relaxed font-medium">{property.description}</p>
           </section>
 
@@ -174,7 +228,6 @@ export default function PropertyShow() {
                   
                   {Object.entries(bhks).map(([bhkName, variants]) => (
                     <div key={bhkName} className="ml-4 space-y-3">
-                      {/* Added Black Oval Box here */}
                       <div className="inline-block bg-slate-900 px-4 py-1.5 rounded-full">
                         <p className="text-[11px] font-black text-white uppercase tracking-widest">{bhkName} Variants</p>
                       </div>

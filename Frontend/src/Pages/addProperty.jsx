@@ -5,6 +5,7 @@ import {
   CheckCircle, Home, Building2, Map, Upload, ArrowRight, 
   ArrowLeft, ClipboardList, MapPin, X, Trash2, PlusCircle 
 } from "lucide-react";
+import { Navigate } from "react-router-dom";
 
 // --- INDIAN PRICE FORMATTER ---
 const formatIndianPrice = (num) => {
@@ -210,6 +211,7 @@ const toggleBHK = (subType, bhk) => {
 
     if(res.data.success) {
       alert("Property Added Successfully!");
+      Navigate("/my-properties"); // Redirect to dashboard after successful submission
       // window.location.reload(); // Optional
     }
 
