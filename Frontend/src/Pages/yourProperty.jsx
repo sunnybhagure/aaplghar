@@ -1,22 +1,18 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { PropertyCard } from "../Components/propertyCard";
-import { Loader2, MapPin, Building2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 
 export default function YourProperties() {
   const [groupedProperties, setGroupedProperties] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [debugInfo, setDebugInfo] = useState(""); // Debugging sathi
 
   useEffect(() => {
     const getBuilderId = () => {
       const userDataRaw = localStorage.getItem("user");
       const adminIdRaw = localStorage.getItem("adminId");
       const builderIdRaw = localStorage.getItem("builderId");
-
-      // Debugging string banvane
-      setDebugInfo(`UserKey: ${userDataRaw ? "Found" : "Null"}, AdminKey: ${adminIdRaw ? "Found" : "Null"}`);
 
       if (userDataRaw) {
         try {
@@ -31,7 +27,7 @@ export default function YourProperties() {
 
     const fetchMyProperties = async () => {
       if (!builderId) {
-        setError("Builder ID sapdali nahi. LocalStorage check kara.");
+        setError("Builder ID sapdali nahi. Please login parat kara.");
         setLoading(false);
         return;
       }
@@ -53,7 +49,7 @@ export default function YourProperties() {
           setGroupedProperties(groups);
         }
       } catch (err) {
-        setError(err.response?.data?.message || "API Error: Properties bhetlya nahit.");
+        setError(err.response?.data?.message || "Properties fetch karta aalya nahit.");
       } finally {
         setLoading(false);
       }
@@ -66,32 +62,33 @@ export default function YourProperties() {
     <div className="min-h-screen bg-[#f8fafc] py-12">
       <div className="max-w-7xl mx-auto px-6">
         
-        {/* DEBUG PANEL - He kaam jhalya var kadhun taka */}
-        <div className="mb-4 p-2 bg-black text-green-400 text-[10px] font-mono rounded-lg">
-          DEBUG: {debugInfo} | LS_KEYS: {Object.keys(localStorage).join(", ")}
-        </div>
-
         <div className="mb-12">
           <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">Your Properties</h1>
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-20"><Loader2 className="animate-spin" /></div>
+          <div className="flex justify-center py-20"><Loader2 className="animate-spin text-blue-600" /></div>
         ) : error ? (
-          <div className="bg-rose-50 p-6 rounded-3xl text-rose-600 flex items-center gap-3">
+          <div className="bg-rose-50 p-6 rounded-3xl text-rose-600 flex items-center gap-3 border border-rose-100">
             <AlertCircle /> {error}
           </div>
         ) : (
           <div className="space-y-10">
             {Object.keys(groupedProperties).length === 0 ? (
-              <p className="text-center text-slate-400">No properties found for this ID.</p>
+              <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200">
+                <p className="text-slate-400 font-bold uppercase tracking-widest text-sm">No properties found.</p>
+              </div>
             ) : (
               Object.keys(groupedProperties).map(city => (
-                <div key={city}>
-                  <h2 className="text-2xl font-bold mb-4">{city}</h2>
-                  <div className="flex gap-6 overflow-x-auto pb-4">
+                <div key={city} className="space-y-4">
+                  <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                    <span className="w-8 h-[2px] bg-blue-600"></span> {city}
+                  </h2>
+                  <div className="flex gap-6 overflow-x-auto pb-6 no-scrollbar">
                     {groupedProperties[city].map(p => (
-                      <PropertyCard key={p._id} property={p} />
+                      <div key={p._id} className="min-w-[300px]">
+                        <PropertyCard property={p} />
+                      </div>
                     ))}
                   </div>
                 </div>

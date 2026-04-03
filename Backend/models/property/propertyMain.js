@@ -24,9 +24,20 @@ const propertySchema = new mongoose.Schema({
   },
 
   price: {
-    starting: Number,
-    upto: Number
+    starting:{
+        type: String,
+        required: true
+    },
+    upto: {
+        type: String,
+        required: true
+    },
   },
+
+  highlights: {
+        type: [String], // Array of strings sathi
+        default: []
+    },
 
   description: String,
   

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react"; // 1. useMemo add kela
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { 
@@ -16,33 +16,36 @@ export default function PropertyShow() {
   const [openPlanKey, setOpenPlanKey] = useState(null); 
   const [showAllMedia, setShowAllMedia] = useState(false);
 
-  // LOGIC: Current Login असलेल्या युजरचा ID मिळवणे
-  const currentAdminId = localStorage.getItem("adminId");
-  
-  // LOGIC: जर प्रॉपर्टी बनवणारा आणि लॉगिन असलेला आयडी एकच असेल तरच True होईल
-  const isAdminOwner = property?.createdBy === currentAdminId;
+  // --- 🔴 OPTIMIZED ADMIN CHECK (Using useMemo) ---
+  // useMemo मुळे हे लॉजिक वारंवार रन होणार नाही, फक्त एकदाच होईल.
+  const isAdminOwner = useMemo(() => {
+    if (!property) return false;
+
+    const getLoggedInId = () => {
+      const userDataRaw = localStorage.getItem("user");
+      const adminIdRaw = localStorage.getItem("adminId");
+      const builderIdRaw = localStorage.getItem("builderId");
+
+      if (userDataRaw) {
+        try {
+          const userObj = JSON.parse(userDataRaw);
+          return String(userObj._id || userObj.id);
+        } catch (e) { return null; }
+      }
+      return (adminIdRaw || builderIdRaw)?.replace(/"/g, '');
+    };
+
+    const currentAdminId = getLoggedInId();
+    const propertyOwnerId = property?.builder?._id || property?.builder;
+
+    return currentAdminId && propertyOwnerId && 
+           String(currentAdminId).trim() === String(propertyOwnerId).trim();
+  }, [property]); // फक्त property लोड झाल्यावरच हे रन होईल
 
   useEffect(() => {
     const fetchDetails = async () => {
       try {
         const res = await axios.get(`http://localhost:5000/api/property/getProperty/${id}`);
-
-       // १. आधी खात्री करा की property लोड झाली आहे
-if (property) {
-  const currentAdminId = localStorage.getItem("adminId");
-  
-  // २. डेटाबेस मधील आयडी नेमका कुठे आहे ते तपासा (उदा. property.createdBy किंवा property.builderId)
-  const ownerIdInDB = property.createdBy || property.builderId || property.admin;
-
-  const isAdminOwner = ownerIdInDB && currentAdminId && 
-                       String(ownerIdInDB) === String(currentAdminId);
-
-  console.log("Checking match:", {
-    db: ownerIdInDB,
-    local: currentAdminId,
-    match: isAdminOwner
-  });
-}
         const data = res.data.data || res.data;
         setProperty(data);
         setActiveImg(data.images?.coverImage);
@@ -60,7 +63,7 @@ if (property) {
       try {
         await axios.delete(`http://localhost:5000/api/property/delete/${property._id}`);
         alert("Property deleted successfully!");
-        navigate("/your-properties"); // किंवा तुमच्या डॅशबोर्डचा मार्ग
+        navigate("/your-properties"); 
       } catch (err) {
         console.error("Delete failed", err);
         alert("Failed to delete property");
@@ -97,9 +100,8 @@ if (property) {
   return (
     <div className="min-h-screen bg-[#f8fafc] pb-20 text-slate-900">
       
-      {/* 🟢 ADMIN CONTROLS: फक्त प्रॉपर्टी मालकाला दिसणार */}
       {isAdminOwner && (
-        <div className="bg-white border-b border-slate-200">
+        <div className="bg-white border-b border-slate-200 sticky top-0 z-50">
           <div className="max-w-6xl mx-auto px-4 py-3 flex gap-3 justify-end">
             <button 
               onClick={() => navigate(`/update-property/${property._id}`)}
@@ -117,7 +119,6 @@ if (property) {
         </div>
       )}
       
-      {/* 1. HEADER SECTION */}
       <div className="max-w-6xl mx-auto px-4 pt-6 pb-4">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2 text-slate-400 font-bold text-[11px] uppercase tracking-widest">
@@ -131,7 +132,6 @@ if (property) {
         </div>
       </div>
 
-      {/* 2. IMAGE SECTION */}
       <div className="max-w-6xl mx-auto px-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
           <div className="md:col-span-3 aspect-video bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
@@ -154,7 +154,6 @@ if (property) {
         </div>
       </div>
 
-      {/* 3. MAIN PRICE BAR */}
       <div className="max-w-6xl mx-auto px-4 mb-6 space-y-4">
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
@@ -186,10 +185,8 @@ if (property) {
         </div>
       </div>
 
-      {/* 4. MAIN LAYOUT */}
       <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          
           <section>
             <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-widest mb-3 ml-1">Amenities</h4>
             <div className="flex flex-wrap gap-2">
@@ -217,7 +214,6 @@ if (property) {
 
           <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
             <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-widest mb-6">Property Plan Details</h4>
-            
             <div className="space-y-8">
               {property.propertyType === "residential" && Object.entries(property.residentialDetails?.config || {}).map(([subType, bhks]) => (
                 <div key={subType} className="border-l-4 border-blue-600 pl-4 space-y-4">
@@ -225,13 +221,11 @@ if (property) {
                     <Building2 className="w-4 h-4 text-blue-600" />
                     <h5 className="font-black text-sm uppercase tracking-tight">{subType}</h5>
                   </div>
-                  
                   {Object.entries(bhks).map(([bhkName, variants]) => (
                     <div key={bhkName} className="ml-4 space-y-3">
                       <div className="inline-block bg-slate-900 px-4 py-1.5 rounded-full">
                         <p className="text-[11px] font-black text-white uppercase tracking-widest">{bhkName} Variants</p>
                       </div>
-
                       <div className="grid grid-cols-1 gap-2">
                         {variants.map((v, vIdx) => {
                           const uniqueKey = `${subType}-${bhkName}-${vIdx}`;
@@ -262,48 +256,12 @@ if (property) {
                   ))}
                 </div>
               ))}
-
-              {(property.propertyType === "commercial" || property.propertyType === "plot") && 
-                Object.entries((property.commercialDetails || property.plotDetails)?.config || {}).map(([subType, variants]) => (
-                <div key={subType} className="border-l-4 border-emerald-600 pl-4 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <LayoutDashboard className="w-4 h-4 text-emerald-600" />
-                    <h5 className="font-black text-sm uppercase tracking-tight">{subType}</h5>
-                  </div>
-                  <div className="grid grid-cols-1 gap-2">
-                    {variants.map((v, vIdx) => {
-                      const uniqueKey = `${subType}-${vIdx}`;
-                      return (
-                        <div key={vIdx} className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-4">
-                          <div className="flex justify-between items-center">
-                            <div className="flex flex-col gap-0.5">
-                              <span className="text-xs font-black text-slate-700">{v.area} SQFT</span>
-                              <span className="text-[14px] font-black text-emerald-600 flex items-center">
-                                <IndianRupee className="w-3 h-3 mr-0.5" /> {formatPrice(v.price)}
-                              </span>
-                            </div>
-                            <button onClick={() => setOpenPlanKey(openPlanKey === uniqueKey ? null : uniqueKey)} className="text-[10px] font-black uppercase bg-emerald-600 text-white px-4 py-2 rounded-lg flex items-center gap-2">
-                              {openPlanKey === uniqueKey ? "Hide Plan" : "Show Plan"}
-                            </button>
-                          </div>
-                          {openPlanKey === uniqueKey && (
-                            <div className="bg-white rounded-lg border border-slate-200 p-2">
-                              <img src={v.planImage} className="w-full h-auto rounded-lg object-contain max-h-[350px]" alt="Plan" />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
             </div>
           </section>
         </div>
 
-        {/* SIDEBAR */}
         <div className="lg:col-span-1">
-          <div className="bg-slate-900 text-white p-7 rounded-2xl sticky top-6 shadow-2xl">
+          <div className="bg-slate-900 text-white p-7 rounded-2xl sticky top-24 shadow-2xl">
             <h5 className="text-[10px] font-black uppercase tracking-[3px] mb-6 opacity-40">Ready to Visit?</h5>
             <div className="space-y-3.5">
               <button className="w-full bg-blue-600 py-4 rounded-xl font-black uppercase text-[11px] tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-900/40">Schedule Call</button>
@@ -312,7 +270,7 @@ if (property) {
             <div className="mt-8 pt-8 border-t border-white/5 flex items-center gap-4">
               <div className="w-11 h-11 bg-blue-600/20 rounded-full flex items-center justify-center font-black text-blue-400 text-xs">AG</div>
               <div>
-                <p className="font-black text-[13px] tracking-tight">Property Advisor</p>
+                <p className="font-black text-[13px] tracking-tight">{property.builder?.name || "Property Advisor"}</p>
                 <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Authorized Partner</p>
               </div>
             </div>
@@ -320,9 +278,8 @@ if (property) {
         </div>
       </div>
 
-      {/* GALLERY MODAL */}
       {showAllMedia && (
-        <div className="fixed inset-0 z-[100] bg-white overflow-y-auto p-4 md:p-10 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[100] bg-white overflow-y-auto p-4 md:p-10">
           <div className="max-w-5xl mx-auto">
             <div className="flex justify-between items-center mb-8 sticky top-0 bg-white py-4 border-b border-slate-100 z-10">
               <h2 className="font-black uppercase tracking-tighter text-2xl">Property Gallery ({allMedia.length})</h2>

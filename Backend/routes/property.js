@@ -23,7 +23,7 @@ router.get("/getProperty/:id", getPropertyById);
 router.get('/builder/:builderId', getPropertiesByBuilder);
 
 // Update karne
-router.put('/update/:id', updateProperty);
+router.put('/update/:id',   upload.any(), updateProperty);
 
 // Delete karne
 router.delete('/delete/:id', deleteProperty);
