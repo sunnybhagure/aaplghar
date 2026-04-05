@@ -25,11 +25,11 @@ const propertySchema = new mongoose.Schema({
 
   price: {
     starting:{
-        type: String,
+        type: Number,
         required: true
     },
     upto: {
-        type: String,
+        type: Number,
         required: true
     },
   },
@@ -42,6 +42,9 @@ const propertySchema = new mongoose.Schema({
   description: String,
   
   specification: [String],
+  projectArea: String, // Total project area acres madhye
+  possessionDate: String, // Step 2 madhli date
+  facilities: [String],
 
 
   amenities: [String],
@@ -52,6 +55,7 @@ const propertySchema = new mongoose.Schema({
     gallery: [String],
     societyPlan: String,
   },
+  status: { type: String, enum: ["under_construction", "ready"] },
 
   // 👇 MAIN CONNECTION
   residentialDetails: residentialSchema,

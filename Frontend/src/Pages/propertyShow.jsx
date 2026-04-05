@@ -1,11 +1,40 @@
-import { useState, useEffect, useMemo } from "react"; // 1. useMemo add kela
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { 
   MapPin, IndianRupee, Calendar, User, CheckCircle2, 
-  Loader2, ChevronDown, ChevronUp, X, LayoutDashboard, Building2,
-  Trash2, Edit3 
+  Loader2, ChevronDown, ChevronUp, X, Building2,
+  Trash2, Edit3, MoveHorizontal, MoveVertical
 } from "lucide-react";
+
+// --- Read More Wrapper ---
+const ReadMoreWrapper = ({ children, maxHeight = 150 }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [showButton, setShowButton] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (ref.current && ref.current.scrollHeight > maxHeight) {
+      setShowButton(true);
+    }
+  }, [children, maxHeight]);
+
+  return (
+    <div>
+      <div ref={ref} style={{ maxHeight: isExpanded ? "none" : `${maxHeight}px`, overflow: "hidden" }}>
+        {children}
+      </div>
+      {showButton && (
+        <button 
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="mt-3 text-[10px] font-black uppercase text-blue-600 tracking-widest hover:underline"
+        >
+          {isExpanded ? "Read Less -" : "Read More +"}
+        </button>
+      )}
+    </div>
+  );
+};
 
 export default function PropertyShow() {
   const { id } = useParams();
@@ -16,16 +45,12 @@ export default function PropertyShow() {
   const [openPlanKey, setOpenPlanKey] = useState(null); 
   const [showAllMedia, setShowAllMedia] = useState(false);
 
-  // --- 🔴 OPTIMIZED ADMIN CHECK (Using useMemo) ---
-  // useMemo मुळे हे लॉजिक वारंवार रन होणार नाही, फक्त एकदाच होईल.
   const isAdminOwner = useMemo(() => {
     if (!property) return false;
-
     const getLoggedInId = () => {
       const userDataRaw = localStorage.getItem("user");
       const adminIdRaw = localStorage.getItem("adminId");
       const builderIdRaw = localStorage.getItem("builderId");
-
       if (userDataRaw) {
         try {
           const userObj = JSON.parse(userDataRaw);
@@ -34,13 +59,10 @@ export default function PropertyShow() {
       }
       return (adminIdRaw || builderIdRaw)?.replace(/"/g, '');
     };
-
     const currentAdminId = getLoggedInId();
     const propertyOwnerId = property?.builder?._id || property?.builder;
-
-    return currentAdminId && propertyOwnerId && 
-           String(currentAdminId).trim() === String(propertyOwnerId).trim();
-  }, [property]); // फक्त property लोड झाल्यावरच हे रन होईल
+    return currentAdminId && propertyOwnerId && String(currentAdminId).trim() === String(propertyOwnerId).trim();
+  }, [property]);
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -51,51 +73,42 @@ export default function PropertyShow() {
         setActiveImg(data.images?.coverImage);
         setLoading(false);
       } catch (err) {
-        console.error("Error fetching property:", err);
         setLoading(false);
       }
     };
     fetchDetails();
   }, [id]);
 
-  const handleDelete = async () => {
-    if(window.confirm("Are you sure you want to delete this property?")) {
-      try {
-        await axios.delete(`http://localhost:5000/api/property/delete/${property._id}`);
-        alert("Property deleted successfully!");
-        navigate("/your-properties"); 
-      } catch (err) {
-        console.error("Delete failed", err);
-        alert("Failed to delete property");
-      }
-    }
-  };
-
   const formatPrice = (num) => {
     const val = Number(num);
     if (!val || val <= 0) return "0";
-    if (val >= 10000000) {
-      const cr = val / 10000000;
-      return Number.isInteger(cr) ? `${cr} Cr` : `${cr.toFixed(2)} Cr`;
-    } else if (val >= 100000) {
-      const lakh = val / 100000;
-      return Number.isInteger(lakh) ? `${lakh} L` : `${lakh.toFixed(2)} L`;
-    } else {
-      return val.toLocaleString('en-IN'); 
-    }
+    if (val >= 10000000) return `${(val / 10000000).toFixed(2)} Cr`;
+    else if (val >= 100000) return `${(val / 100000).toFixed(2)} L`;
+    else return val.toLocaleString('en-IN'); 
   };
 
-  if (loading) return (
-    <div className="h-screen flex items-center justify-center bg-white">
-      <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-    </div>
-  );
+  const displayTags = useMemo(() => {
+    if (!property) return [];
+    const tags = [];
+    if (property.propertyType === 'residential' && property.residentialDetails?.config) {
+      Object.entries(property.residentialDetails.config).forEach(([subType, bhkObj]) => {
+        const bhkList = Object.keys(bhkObj).map(b => b.replace(/bhk/i, '').trim());
+        tags.push({ label: subType, subLabel: bhkList.length > 0 ? `${bhkList.join(', ')} BHK` : "Property" });
+      });
+    } else {
+      const otherTypes = [
+        ...(property.commercialDetails?.propertySubTypes || []),
+        ...(property.plotDetails?.plotTypes || [])
+      ];
+      otherTypes.forEach(t => tags.push({ label: t, subLabel: property.propertyType?.toUpperCase() }));
+    }
+    return tags;
+  }, [property]);
 
+  if (loading) return <div className="h-screen flex items-center justify-center bg-white"><Loader2 className="w-8 h-8 text-blue-600 animate-spin" /></div>;
   if (!property) return <div className="p-20 text-center font-bold uppercase tracking-widest text-slate-400">Property Not Found</div>;
 
-  const gallery = property.images?.gallery || [];
-  const societyPlan = property.images?.societyPlan ? [property.images.societyPlan] : [];
-  const allMedia = [...new Set([...gallery, ...societyPlan])].filter(img => img && typeof img === 'string');
+  const allMedia = [...new Set([...(property.images?.gallery || []), property.images?.societyPlan])].filter(img => img && typeof img === 'string');
 
   return (
     <div className="min-h-screen bg-[#f8fafc] pb-20 text-slate-900">
@@ -103,23 +116,14 @@ export default function PropertyShow() {
       {isAdminOwner && (
         <div className="bg-white border-b border-slate-200 sticky top-0 z-50">
           <div className="max-w-6xl mx-auto px-4 py-3 flex gap-3 justify-end">
-            <button 
-              onClick={() => navigate(`/update-property/${property._id}`)}
-              className="flex items-center gap-2 bg-slate-900 text-white px-5 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 transition-all"
-            >
-              <Edit3 className="w-3.5 h-3.5" /> Update Property
-            </button>
-            <button 
-              onClick={handleDelete}
-              className="flex items-center gap-2 bg-rose-600 text-white px-5 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg shadow-rose-100"
-            >
-              <Trash2 className="w-3.5 h-3.5" /> Delete
-            </button>
+            <button onClick={() => navigate(`/update-property/${property._id}`)} className="flex items-center gap-2 bg-slate-900 text-white px-5 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 transition-all"><Edit3 className="w-3.5 h-3.5" /> Update Property</button>
+            <button onClick={async () => { if(window.confirm("Delete?")) { await axios.delete(`http://localhost:5000/api/property/delete/${id}`); navigate("/your-properties"); }}} className="flex items-center gap-2 bg-rose-600 text-white px-5 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg shadow-rose-100"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
           </div>
         </div>
       )}
       
-      <div className="max-w-6xl mx-auto px-4 pt-6 pb-4">
+      {/* Header */}
+      <div className="max-w-6xl mx-auto px-4 pt-8 pb-4 flex flex-col md:flex-row justify-between items-start md:items-end">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2 text-slate-400 font-bold text-[11px] uppercase tracking-widest">
             <User className="w-3.5 h-3.5" /> {property.builder?.name || "Aaple Ghar Partner"} | <Calendar className="w-3.5 h-3.5" /> {new Date(property.createdAt).toLocaleDateString()}
@@ -130,8 +134,20 @@ export default function PropertyShow() {
             <span className="font-bold text-[13px] text-slate-500">{property.location?.area}, {property.location?.city}</span>
           </div>
         </div>
+        <div className="mt-6 md:mt-0 flex items-end gap-8">
+          <div className="text-right">
+             <p className={`text-[12px] font-black uppercase tracking-widest ${property.status === 'ready' ? 'text-emerald-500' : 'text-orange-500'}`}>{property.status?.replace('_', ' ')}</p>
+             {property.status !== 'ready' && property.possessionDate && <p className="text-[10px] font-black text-blue-600 uppercase mt-0.5">Possession-Date: {property.possessionDate}</p>}
+          </div>
+          <div className="h-10 w-[1px] bg-slate-200 hidden md:block"></div>
+          <div className="text-right">
+             <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Project Area</p>
+             <p className="text-xl font-black text-slate-900 leading-none">{property.projectArea || "N/A"} <span className="text-[10px]">Acres</span></p>
+          </div>
+        </div>
       </div>
 
+      {/* Gallery Section */}
       <div className="max-w-6xl mx-auto px-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
           <div className="md:col-span-3 aspect-video bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
@@ -154,39 +170,64 @@ export default function PropertyShow() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 mb-6 space-y-4">
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <p className="text-[9px] font-black text-slate-400 uppercase mb-0.5 tracking-widest">Estimated Value</p>
-            <div className="text-2xl font-black text-emerald-600 flex items-center leading-none">
-              <IndianRupee className="w-5 h-5" /> {formatPrice(property.price?.starting)} - {formatPrice(property.price?.upto)}
-            </div>
-          </div>
-          
-          <div className="flex flex-wrap gap-2">
-            {(property.residentialDetails?.propertySubTypes || property.commercialDetails?.propertySubTypes || property.plotDetails?.plotTypes || []).map((type, i) => {
-              const configs = property.propertyType === 'residential' 
-                ? Object.keys(property.residentialDetails?.config?.[type] || {})
-                    .map(key => key.replace(/\D/g, ''))
-                    .filter(val => val !== "")
-                    .join(", ")
-                : "";
-
-              return (
-                <div key={i} className="bg-slate-50 border border-slate-200 p-2 px-4 rounded-xl flex flex-col items-start min-w-[100px]">
-                  <span className="text-[16px] font-black text-slate-400 uppercase tracking-tighter">{type}</span>
-                  <span className="text-[12px] font-bold text-slate-700">
-                    {property.propertyType === 'residential' ? `${configs} BHK` : "Available"}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
       <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          
+          {/* Price Box */}
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <p className="text-[9px] font-black text-slate-400 uppercase mb-0.5 tracking-widest">Estimated Value</p>
+              <div className="text-2xl font-black text-emerald-600 flex items-center leading-none">
+                <IndianRupee className="w-5 h-5" /> {formatPrice(property.price?.starting)} - {formatPrice(property.price?.upto)}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {displayTags.map((tag, i) => (
+                  <div key={i} className="bg-slate-50 border border-slate-200 p-2 px-4 rounded-xl flex flex-col items-start min-w-[120px]">
+                    <span className="text-[14px] font-black text-slate-400 uppercase tracking-tighter leading-none">{tag.label}</span>
+                    <span className="text-[11px] font-bold text-slate-700 mt-1 uppercase tracking-tight italic">{tag.subLabel}</span>
+                  </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Localities Slider */}
+          {property.nearbyLocalities?.length > 0 && (
+            <section className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Nearby Localities</h4>
+                <div className="flex overflow-x-auto gap-4 pb-4 overflow-y-hidden scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-50">
+                    {property.nearbyLocalities.map((loc, i) => {
+                        const [place, dist] = loc.split('(');
+                        return (
+                            <div key={i} className="min-w-[240px] border border-slate-100 p-4 rounded-xl bg-slate-50/50 flex-shrink-0 hover:border-blue-200 transition-colors">
+                                <p className="font-black text-[13px] text-slate-800 leading-tight uppercase mb-1">{place.trim()}</p>
+                                <p className="text-[11px] font-bold text-blue-600 flex items-center gap-1">
+                                    <MapPin className="w-3 h-3" /> {dist ? `${dist.replace(')', '')}` : "Nearby"}
+                                </p>
+                            </div>
+                        );
+                    })}
+                </div>
+            </section>
+          )}
+
+          {/* Highlights */}
+          {property.highlights?.length > 0 && (
+            <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-widest mb-4">Highlights</h4>
+                <ReadMoreWrapper maxHeight={150}>
+                    <div className="space-y-2.5">
+                        {property.highlights.map((h, i) => (
+                            <div key={i} className="text-[13px] font-bold text-slate-500 bg-blue-50/30 p-4 rounded-xl flex items-center gap-3 border border-blue-100/50">
+                                <CheckCircle2 className="w-4 h-4 text-blue-500 shrink-0" /> <span className="capitalize">{h}</span>
+                            </div>
+                        ))}
+                    </div>
+                </ReadMoreWrapper>
+            </section>
+          )}
+
+          {/* Amenities */}
           <section>
             <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-widest mb-3 ml-1">Amenities</h4>
             <div className="flex flex-wrap gap-2">
@@ -196,58 +237,64 @@ export default function PropertyShow() {
             </div>
           </section>
 
-          <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-            <h4 className="text-[11px] font-black text-slate-800 uppercase mb-4 tracking-widest">Specifications</h4>
-            <div className="space-y-2.5">
-              {property.specification?.map((spec, i) => (
-                <div key={i} className="text-[13px] font-bold text-slate-500 bg-slate-50/50 p-4 rounded-xl flex items-center gap-3 border border-slate-100/50">
-                  <CheckCircle2 className="w-4.5 h-4.5 text-blue-500 shrink-0" /> <span className="capitalize">{spec}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-
+          {/* Project Overview */}
           <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
             <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Project Overview</h4>
-            <p className="text-[14px] text-slate-600 leading-relaxed font-medium">{property.description}</p>
+            <ReadMoreWrapper maxHeight={100}>
+                <p className="text-[14px] text-slate-600 leading-relaxed font-medium">{property.description}</p>
+            </ReadMoreWrapper>
           </section>
 
+          {/* Specifications */}
+          <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+            <h4 className="text-[11px] font-black text-slate-800 uppercase mb-4 tracking-widest">Specifications</h4>
+            <ReadMoreWrapper maxHeight={200}>
+                <div className="space-y-2.5">
+                {property.specification?.map((spec, i) => (
+                    <div key={i} className="text-[13px] font-bold text-slate-500 bg-slate-50/50 p-4 rounded-xl flex items-center gap-3 border border-slate-100/50">
+                    <CheckCircle2 className="w-4.5 h-4.5 text-blue-500 shrink-0" /> <span className="capitalize">{spec}</span>
+                    </div>
+                ))}
+                </div>
+            </ReadMoreWrapper>
+          </section>
+
+          {/* Facilities (Added Back - Missed earlier) */}
+          {property.facilities?.length > 0 && (
+            <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+               <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-widest mb-4">Facilities</h4>
+               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {property.facilities.map((fac, i) => (
+                    <div key={i} className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                        <span className="text-[12px] font-bold text-slate-600 uppercase tracking-tight">{fac}</span>
+                    </div>
+                  ))}
+               </div>
+            </section>
+          )}
+
+          {/* Property Plan Details (Fixed for All Types) */}
           <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
             <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-widest mb-6">Property Plan Details</h4>
             <div className="space-y-8">
+              {/* Residential */}
               {property.propertyType === "residential" && Object.entries(property.residentialDetails?.config || {}).map(([subType, bhks]) => (
                 <div key={subType} className="border-l-4 border-blue-600 pl-4 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-blue-600" />
-                    <h5 className="font-black text-sm uppercase tracking-tight">{subType}</h5>
-                  </div>
+                  <div className="flex items-center gap-2"><Building2 className="w-4 h-4 text-blue-600" /><h5 className="font-black text-sm uppercase tracking-tight">{subType}</h5></div>
                   {Object.entries(bhks).map(([bhkName, variants]) => (
                     <div key={bhkName} className="ml-4 space-y-3">
-                      <div className="inline-block bg-slate-900 px-4 py-1.5 rounded-full">
-                        <p className="text-[11px] font-black text-white uppercase tracking-widest">{bhkName} Variants</p>
-                      </div>
+                      <div className="inline-block bg-slate-900 px-4 py-1.5 rounded-full"><p className="text-[11px] font-black text-white uppercase tracking-widest">{bhkName} Variants</p></div>
                       <div className="grid grid-cols-1 gap-2">
                         {variants.map((v, vIdx) => {
-                          const uniqueKey = `${subType}-${bhkName}-${vIdx}`;
+                          const uniqueKey = `res-${subType}-${bhkName}-${vIdx}`;
                           return (
                             <div key={vIdx} className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-4">
                               <div className="flex justify-between items-center">
-                                <div className="flex flex-col gap-0.5">
-                                  <span className="text-xs font-black text-slate-700">{v.area} SQFT Area</span>
-                                  <span className="text-[14px] font-black text-emerald-600 flex items-center">
-                                    <IndianRupee className="w-3 h-3 mr-0.5" /> {formatPrice(v.price)}
-                                  </span>
-                                </div>
-                                <button onClick={() => setOpenPlanKey(openPlanKey === uniqueKey ? null : uniqueKey)} className="text-[10px] font-black uppercase bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-lg shadow-blue-200">
-                                  {openPlanKey === uniqueKey ? "Hide Plan" : "Show Plan"}
-                                  {openPlanKey === uniqueKey ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>}
-                                </button>
+                                <div className="flex flex-col gap-0.5"><span className="text-xs font-black text-slate-700">{v.area} SQFT Area</span><span className="text-[14px] font-black text-emerald-600 flex items-center"><IndianRupee className="w-3 h-3 mr-0.5" /> {formatPrice(v.price)}</span></div>
+                                <button onClick={() => setOpenPlanKey(openPlanKey === uniqueKey ? null : uniqueKey)} className="text-[10px] font-black uppercase bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2">{openPlanKey === uniqueKey ? "Hide Plan" : "Show Plan"} {openPlanKey === uniqueKey ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>}</button>
                               </div>
-                              {openPlanKey === uniqueKey && (
-                                <div className="bg-white rounded-lg border border-slate-200 p-2">
-                                  <img src={v.planImage} className="w-full h-auto rounded-lg object-contain max-h-[350px]" alt="Plan" />
-                                </div>
-                              )}
+                              {openPlanKey === uniqueKey && v.planImage && <div className="bg-white rounded-lg border border-slate-200 p-2"><img src={v.planImage} className="w-full h-auto rounded-lg object-contain max-h-[350px]" alt="Plan" /></div>}
                             </div>
                           );
                         })}
@@ -256,18 +303,51 @@ export default function PropertyShow() {
                   ))}
                 </div>
               ))}
+
+              {/* Commercial & Plot */}
+              {(property.propertyType === "commercial" || property.propertyType === "plot") && 
+                Object.entries((property.propertyType === "commercial" ? property.commercialDetails?.config : property.plotDetails?.config) || {}).map(([subType, variants]) => (
+                  <div key={subType} className="border-l-4 border-emerald-600 pl-4 space-y-4">
+                    <div className="flex items-center gap-2"><Building2 className="w-4 h-4 text-emerald-600" /><h5 className="font-black text-sm uppercase tracking-tight">{subType}</h5></div>
+                    <div className="grid grid-cols-1 gap-2 ml-4">
+                        {variants.map((v, vIdx) => {
+                          const uniqueKey = `other-${subType}-${vIdx}`;
+                          return (
+                            <div key={vIdx} className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-4">
+                              <div className="flex justify-between items-center">
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-xs font-black text-slate-700">{v.area} SQFT</span>
+                                  {property.propertyType === "plot" && (v.length || v.width) && (
+                                    <div className="flex gap-3 text-[10px] text-slate-400 font-bold uppercase tracking-tight">
+                                      <span>L: {v.length} ft</span> <span>W: {v.width} ft</span>
+                                    </div>
+                                  )}
+                                  <span className="text-[14px] font-black text-emerald-600 flex items-center"><IndianRupee className="w-3 h-3 mr-0.5" /> {formatPrice(v.price)}</span>
+                                </div>
+                                <button onClick={() => setOpenPlanKey(openPlanKey === uniqueKey ? null : uniqueKey)} className="text-[10px] font-black uppercase bg-emerald-600 text-white px-4 py-2 rounded-lg flex items-center gap-2">{openPlanKey === uniqueKey ? "Hide Plan" : "Show Plan"} {openPlanKey === uniqueKey ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>}</button>
+                              </div>
+                              {openPlanKey === uniqueKey && v.planImage && <div className="bg-white rounded-lg border border-slate-200 p-2"><img src={v.planImage} className="w-full h-auto rounded-lg object-contain max-h-[350px]" alt="Plan" /></div>}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+              ))}
             </div>
           </section>
         </div>
 
+        {/* Sidebar */}
         <div className="lg:col-span-1">
-          <div className="bg-slate-900 text-white p-7 rounded-2xl sticky top-24 shadow-2xl">
-            <h5 className="text-[10px] font-black uppercase tracking-[3px] mb-6 opacity-40">Ready to Visit?</h5>
-            <div className="space-y-3.5">
-              <button className="w-full bg-blue-600 py-4 rounded-xl font-black uppercase text-[11px] tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-900/40">Schedule Call</button>
-              <button className="w-full bg-white/10 py-4 rounded-xl font-black uppercase text-[11px] tracking-widest border border-white/5 hover:bg-white/20 transition-all">Project Details</button>
+          <div className="bg-slate-900 text-white p-7 rounded-2xl sticky top-24 shadow-2xl space-y-8">
+            <div>
+                <h5 className="text-[10px] font-black uppercase tracking-[3px] mb-6 opacity-40 italic">Inquiry Center</h5>
+                <div className="space-y-3.5">
+                <button className="w-full bg-blue-600 py-4 rounded-xl font-black uppercase text-[11px] tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-900/40">Schedule Call</button>
+                <button className="w-full bg-white/10 py-4 rounded-xl font-black uppercase text-[11px] tracking-widest border border-white/5 hover:bg-white/20 transition-all">Project Details</button>
+                </div>
             </div>
-            <div className="mt-8 pt-8 border-t border-white/5 flex items-center gap-4">
+            <div className="pt-8 border-t border-white/5 flex items-center gap-4">
               <div className="w-11 h-11 bg-blue-600/20 rounded-full flex items-center justify-center font-black text-blue-400 text-xs">AG</div>
               <div>
                 <p className="font-black text-[13px] tracking-tight">{property.builder?.name || "Property Advisor"}</p>
@@ -278,6 +358,7 @@ export default function PropertyShow() {
         </div>
       </div>
 
+      {/* Gallery Modal */}
       {showAllMedia && (
         <div className="fixed inset-0 z-[100] bg-white overflow-y-auto p-4 md:p-10">
           <div className="max-w-5xl mx-auto">
@@ -288,7 +369,7 @@ export default function PropertyShow() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-10">
               {allMedia.map((img, i) => (
                 <div key={i} className="rounded-3xl overflow-hidden border border-slate-100 shadow-md">
-                   <img src={img} className="w-full h-auto object-cover hover:scale-105 transition-transform duration-500" alt="Gallery" />
+                   <img src={img} className="w-full h-auto object-cover" alt="Gallery" />
                 </div>
               ))}
             </div>

@@ -7,48 +7,68 @@ import {
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 
+// --- PRICE CONVERTER LOGIC ---
+const formatPrice = (value) => {
+  if (!value || isNaN(value)) return "";
+  const num = parseFloat(value);
+  if (num >= 10000000) return `(${(num / 10000000).toFixed(2)} Cr)`;
+  if (num >= 100000) return `(${(num / 100000).toFixed(2)} Lakh)`;
+  return `(${num.toLocaleString("en-IN")})`;
+};
+
+// --- CUSTOM LOCALITIES INPUT ---
+const LocalitiesInput = ({ label, value = [], onChange }) => {
+  const [loc, setLoc] = useState("");
+  const [dist, setDist] = useState("");
+  const addLocality = () => {
+    if (loc.trim()) {
+      const combined = dist.trim() ? `${loc.trim()} (${dist.trim()})` : loc.trim();
+      if (!value.includes(combined)) {
+        onChange([...value, combined]);
+        setLoc(""); setDist("");
+      }
+    }
+  };
+  return (
+    <div className="space-y-2 flex-1">
+      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">{label}</label>
+      <div className="flex flex-col md:flex-row gap-2">
+        <input type="text" value={loc} onChange={(e) => setLoc(e.target.value)} placeholder="Location Name" className="flex-[1.5] px-4 py-3 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500" />
+        <input type="text" value={dist} onChange={(e) => setDist(e.target.value)} placeholder="Dist/Time (e.g. 5 min)" className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500" />
+        <button type="button" onClick={addLocality} className="bg-slate-900 text-white px-6 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 transition-all">Add</button>
+      </div>
+      <div className="flex flex-wrap gap-2 mt-2">
+        {value.map((item, index) => (
+          <span key={index} className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-blue-100">
+            <MapPin className="w-3 h-3" /> {item}
+            <button type="button" onClick={() => onChange(value.filter((_, i) => i !== index))} className="hover:text-red-500"><X className="w-3 h-3" /></button>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // --- MultiInput Component ---
 const MultiInput = ({ label, placeholder, value = [], onChange }) => {
   const [inputValue, setInputValue] = useState("");
   const handleKeyDown = (e) => {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      addTag();
-    }
+    if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addTag(); }
   };
   const addTag = () => {
     const trimmed = inputValue.trim().replace(/,/g, "");
-    if (trimmed && !value.includes(trimmed)) {
-      onChange([...value, trimmed]);
-      setInputValue("");
-    }
-  };
-  const removeTag = (tagToRemove) => {
-    onChange(value.filter((tag) => tag !== tagToRemove));
+    if (trimmed && !value.includes(trimmed)) { onChange([...value, trimmed]); setInputValue(""); }
   };
   return (
-    <div className="space-y-1.5 flex-1">
-      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">
-        {label} <span className="text-[10px] text-blue-500 normal-case">(Type & press Comma)</span>
-      </label>
+    <div className="space-y-1.5 w-full">
+      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">{label} <span className="text-[10px] text-blue-500 normal-case">(Type & press Comma)</span></label>
       <div className="flex flex-wrap gap-2 p-3 bg-white border border-slate-200 rounded-xl focus-within:border-blue-500 transition-all min-h-[50px]">
         {value.map((tag, index) => (
           <span key={index} className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded-lg text-xs font-bold border border-blue-100">
-            {tag}
-            <button type="button" onClick={() => removeTag(tag)} className="hover:text-red-500">
-              <X className="w-3 h-3" />
-            </button>
+            {tag} <button type="button" onClick={() => onChange(value.filter((t) => t !== tag))} className="hover:text-red-500"><X className="w-3 h-3" /></button>
           </span>
         ))}
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onBlur={addTag}
-          placeholder={value.length === 0 ? placeholder : "Add more..."}
-          className="flex-1 bg-transparent outline-none text-sm font-semibold text-slate-700 min-w-[100px]"
-        />
+        <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={handleKeyDown} onBlur={addTag} placeholder={value.length === 0 ? placeholder : "Add more..."} className="flex-1 bg-transparent outline-none text-sm font-semibold text-slate-700 min-w-[100px]" />
       </div>
     </div>
   );
@@ -61,7 +81,11 @@ export default function UpdateProperty() {
   const [initialLoading, setInitialLoading] = useState(true);
   
   const { register, handleSubmit, watch, setValue, getValues, formState: { errors } } = useForm();
+  
   const currentPropertyType = watch("propertyType");
+  const sPrice = watch("startPrice");
+  const ePrice = watch("endPrice");
+  const currentStatus = watch("status");
 
   const [resSubTypes, setResSubTypes] = useState([]); 
   const [commSubTypes, setCommSubTypes] = useState([]);
@@ -72,12 +96,9 @@ export default function UpdateProperty() {
   const [amenitiesList, setAmenitiesList] = useState([]);
   const [specsList, setSpecsList] = useState([]);
   const [localitiesList, setLocalitiesList] = useState([]);
+  const [facilitiesList, setFacilitiesList] = useState([]); 
 
-  const [existingMedia, setExistingMedia] = useState({
-    coverImage: "",
-    societyPlan: "",
-    gallery: []
-  });
+  const [existingMedia, setExistingMedia] = useState({ coverImage: "", societyPlan: "", gallery: [] });
 
   const getOriginalName = (path) => {
     if (!path || typeof path !== 'string') return "";
@@ -91,7 +112,7 @@ export default function UpdateProperty() {
       try {
         const res = await axios.get(`http://localhost:5000/api/property/getProperty/${id}`);
         const p = res.data.data;
-
+        
         setValue("title", p.title);
         setValue("city", p.location?.city);
         setValue("area", p.location?.area);
@@ -99,14 +120,17 @@ export default function UpdateProperty() {
         setValue("description", p.description);
         setValue("startPrice", p.price?.starting);
         setValue("endPrice", p.price?.upto);
-
-        const dbStatus = p.residentialDetails?.status || p.commercialDetails?.status || p.plotDetails?.status || "";
-        setValue("status", dbStatus);
+        
+        // Main Level Values
+        setValue("status", p.status || "");
+        setValue("projectArea", p.projectArea || "");
+        setValue("possessionDate", p.possessionDate || "");
 
         setHighlightsList(p.highlights || []);
         setAmenitiesList(p.amenities || []);
         setSpecsList(p.specification || []);
         setLocalitiesList(p.nearbyLocalities || []); 
+        setFacilitiesList(p.facilities || []); 
         
         if (p.propertyType === 'residential') {
           setResSubTypes(p.residentialDetails?.propertySubTypes || []);
@@ -115,9 +139,7 @@ export default function UpdateProperty() {
           Object.keys(resConfig).forEach(sub => {
             normalized[sub] = {};
             Object.keys(resConfig[sub]).forEach(bhk => {
-              normalized[sub][bhk] = resConfig[sub][bhk].map(v => ({
-                ...v, plan: v.planImage || v.plan 
-              }));
+              normalized[sub][bhk] = resConfig[sub][bhk].map(v => ({ ...v, plan: v.planImage || v.plan }));
             });
           });
           setConfig(normalized);
@@ -126,9 +148,7 @@ export default function UpdateProperty() {
           const commConfig = p.commercialDetails?.config || {};
           const normalized = {};
           Object.keys(commConfig).forEach(sub => {
-            normalized[sub] = commConfig[sub].map(v => ({
-              ...v, plan: v.planImage || v.plan
-            }));
+            normalized[sub] = commConfig[sub].map(v => ({ ...v, plan: v.planImage || v.plan }));
           });
           setConfig(normalized);
         } else if (p.propertyType === 'plot') {
@@ -136,24 +156,13 @@ export default function UpdateProperty() {
           const plotConfig = p.plotDetails?.config || {};
           const normalized = {};
           Object.keys(plotConfig).forEach(sub => {
-            normalized[sub] = plotConfig[sub].map(v => ({
-              ...v, plan: v.planImage || v.plan
-            }));
+            normalized[sub] = plotConfig[sub].map(v => ({ ...v, plan: v.planImage || v.plan }));
           });
           setConfig(normalized);
         }
-
-        setExistingMedia({
-          coverImage: p.images?.coverImage || "",
-          societyPlan: p.images?.societyPlan || "",
-          gallery: p.images?.gallery || []
-        });
-
+        setExistingMedia({ coverImage: p.images?.coverImage || "", societyPlan: p.images?.societyPlan || "", gallery: p.images?.gallery || [] });
         setInitialLoading(false);
-      } catch (err) {
-        console.error(err);
-        navigate("/my-properties");
-      }
+      } catch (err) { navigate("/my-properties"); }
     };
     fetchProperty();
   }, [id, setValue, navigate]);
@@ -163,17 +172,19 @@ export default function UpdateProperty() {
 
   const updateVal = (subType, index, field, value, bhk = null) => {
     const newConfig = { ...config };
-    if (bhk) newConfig[subType][bhk][index][field] = value;
-    else newConfig[subType][index][field] = value;
+    if (bhk) {
+        if (!newConfig[subType][bhk]) newConfig[subType][bhk] = [];
+        newConfig[subType][bhk][index][field] = value;
+    } else {
+        newConfig[subType][index][field] = value;
+    }
     setConfig(newConfig);
   };
 
   const toggleMainType = (type, list, setList) => {
     if (list.includes(type)) {
       setList(list.filter(item => item !== type));
-      const newConfig = { ...config };
-      delete newConfig[type];
-      setConfig(newConfig);
+      const newConfig = { ...config }; delete newConfig[type]; setConfig(newConfig);
     } else {
       setList([...list, type]);
       const initialVal = currentPropertyType === 'residential' ? {} : [{ area: "", plan: null, price: "" }];
@@ -184,8 +195,7 @@ export default function UpdateProperty() {
   const toggleBHK = (subType, bhk) => {
     const subTypeConfig = config[subType] || {};
     if (subTypeConfig[bhk]) {
-      const newSubConfig = { ...subTypeConfig };
-      delete newSubConfig[bhk];
+      const newSubConfig = { ...subTypeConfig }; delete newSubConfig[bhk];
       setConfig({ ...config, [subType]: newSubConfig });
     } else {
       setConfig({ ...config, [subType]: { ...subTypeConfig, [bhk]: [{ area: "", plan: null, price: "" }] } });
@@ -209,65 +219,39 @@ export default function UpdateProperty() {
   const onSubmit = async (data) => {
     try {
       const formData = new FormData();
-      
-      // Basic Fields - Array error fix
-      const textFields = ["title", "city", "area", "propertyType", "description", "startPrice", "endPrice", "status"];
-      textFields.forEach(k => {
-        // Ensuring only single string values are appended, not arrays from watch/getValues
-        const val = data[k];
-        if (val !== undefined && val !== null) {
-          formData.append(k, Array.isArray(val) ? val[0] : val);
-        }
+      const allData = getValues();
+      ["title", "city", "area", "propertyType", "description", "startPrice", "endPrice", "status", "possessionDate", "projectArea"].forEach(k => {
+        if (allData[k]) formData.append(k, allData[k]);
       });
-
-      // Stringify lists
       formData.append("highlights", JSON.stringify(highlightsList));
       formData.append("amenities", JSON.stringify(amenitiesList));
       formData.append("specification", JSON.stringify(specsList));
       formData.append("localities", JSON.stringify(localitiesList));
+      formData.append("facilities", JSON.stringify(facilitiesList)); 
       formData.append("resSubTypes", JSON.stringify(resSubTypes));
       formData.append("commSubTypes", JSON.stringify(commSubTypes));
       formData.append("plotSubTypes", JSON.stringify(plotSubTypes));
       formData.append("configData", JSON.stringify(config));
 
-      // Config Images
       Object.keys(config).forEach(subType => {
         if (currentPropertyType === 'residential') {
           Object.keys(config[subType] || {}).forEach(bhk => {
-            config[subType][bhk].forEach((v, i) => {
-              if (v.plan instanceof File) formData.append(`plan_${subType}_${bhk}_${i}`, v.plan);
-            });
+            config[subType][bhk].forEach((v, i) => { if (v.plan instanceof File) formData.append(`plan_${subType}_${bhk}_${i}`, v.plan); });
           });
         } else {
-          (config[subType] || []).forEach((v, i) => {
-            if (v.plan instanceof File) formData.append(`plan_${subType}_${i}`, v.plan);
-          });
+          (config[subType] || []).forEach((v, i) => { if (v.plan instanceof File) formData.append(`plan_${subType}_${i}`, v.plan); });
         }
       });
-
-      // Main Media
       if (data.coverImage?.[0]) formData.append("coverImage", data.coverImage[0]);
       if (data.societyPlan?.[0]) formData.append("societyPlan", data.societyPlan[0]);
-      if (data.gallery && data.gallery.length > 0) {
-        Array.from(data.gallery).forEach(f => formData.append("gallery", f));
-      }
+      if (data.gallery) Array.from(data.gallery).forEach(f => formData.append("gallery", f));
 
       const token = localStorage.getItem("adminToken");
       const res = await axios.put(`http://localhost:5000/api/property/update/${id}`, formData, {
-        headers: { 
-          "Content-Type": "multipart/form-data", 
-          "Authorization": `Bearer ${token}` 
-        },
+        headers: { "Content-Type": "multipart/form-data", "Authorization": `Bearer ${token}` },
       });
-
-      if (res.data.success) {
-        alert("Property Updated Successfully!");
-        navigate(`/my-properties`);
-      }
-    } catch (error) {
-      console.error("Submit Error:", error.response?.data);
-      alert(error.response?.data?.message || "Update Failed!");
-    }
+      if (res.data.success) { alert("Property Updated Successfully!"); navigate(`/property/${id}`); }
+    } catch (error) { alert("Update Failed!"); }
   };
 
   if (initialLoading) return <div className="h-screen flex items-center justify-center bg-slate-50"><Loader2 className="w-12 h-12 animate-spin text-blue-600" /></div>;
@@ -276,13 +260,10 @@ export default function UpdateProperty() {
     <div className="min-h-screen py-12 px-4 bg-gradient-to-br from-slate-50 to-blue-50">
       <div className="max-w-3xl mx-auto">
         <div className="mb-12"><Progress step={step} /></div>
-
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
-          <div className="bg-blue-600 px-8 py-6 text-white text-center">
-            <h1 className="text-2xl font-bold">Update Property</h1>
-          </div>
-
+          <div className="bg-blue-600 px-8 py-6 text-white text-center"><h1 className="text-2xl font-bold">Update Property</h1></div>
           <div className="p-8">
+            
             {step === 1 && (
               <div className="space-y-6">
                 <SectionTitle title="Basic & Location Info" icon={<Home className="w-5 h-5" />} />
@@ -291,18 +272,17 @@ export default function UpdateProperty() {
                   <Input label="City" register={register("city")} />
                   <Input label="Area" register={register("area")} />
                 </div>
-                <MultiInput label="Near Localities" value={localitiesList} onChange={setLocalitiesList} />
+                <LocalitiesInput label="Near Localities" value={localitiesList} onChange={setLocalitiesList} />
                 <div className="grid grid-cols-2 gap-4">
-                  <Input label="Starting Price" register={register("startPrice")} />
-                  <Input label="Upto Price" register={register("endPrice")} />
+                  <div className="space-y-1"><label className="text-xs font-bold text-slate-500 uppercase">Starting Price</label><input type="number" {...register("startPrice")} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none" /><p className="text-[10px] font-bold text-blue-600 ml-1">{formatPrice(sPrice)}</p></div>
+                  <div className="space-y-1"><label className="text-xs font-bold text-slate-500 uppercase">Upto Price</label><input type="number" {...register("endPrice")} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none" /><p className="text-[10px] font-bold text-blue-600 ml-1">{formatPrice(ePrice)}</p></div>
                 </div>
                 <div className="space-y-3">
                   <label className="text-sm font-semibold">Property Type</label>
                   <div className="grid grid-cols-3 gap-3">
                     {["residential", "commercial", "plot"].map((type) => (
                       <label key={type} className={`cursor-pointer border-2 rounded-xl p-4 flex flex-col items-center transition-all ${watch("propertyType") === type ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-100"}`}>
-                        <input type="radio" value={type} {...register("propertyType")} className="hidden" />
-                        <span className="capitalize font-medium">{type}</span>
+                        <input type="radio" value={type} {...register("propertyType")} className="hidden" /><span className="capitalize font-medium">{type}</span>
                       </label>
                     ))}
                   </div>
@@ -312,22 +292,41 @@ export default function UpdateProperty() {
             )}
 
             {step === 2 && (
-              <div className="space-y-6">
+              <div className="space-y-8">
                 <SectionTitle title="Specifications" icon={<ClipboardList className="w-5 h-5" />} />
+                
                 <div className="grid grid-cols-2 gap-4">
-                  <Select label="Status" options={["Ready", "Under Construction"]} register={register("status")} />
-                  <MultiInput label="Amenities" value={amenitiesList} onChange={setAmenitiesList} />
+                  <div className="space-y-1 flex-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Status</label>
+                    <select {...register("status")} className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:border-blue-500 outline-none">
+                        <option value="">Select Status</option>
+                        <option value="ready">Ready</option>
+                        <option value="under_construction">Under Construction</option>
+                    </select>
+                  </div>
+                  <Input label="Project Area" type="text" placeholder="e.g. 2.5 Acres" register={register("projectArea")} />
                 </div>
-                <div className="space-y-1">
+
+                {(currentStatus === "under_construction") && (
+                  <div className="w-full">
+                    <Input label="Possession Date" type="text" placeholder="e.g. Dec 2026" register={register("possessionDate")} />
+                  </div>
+                )}
+                
+                <MultiInput label="Amenities" value={amenitiesList} onChange={setAmenitiesList} />
+                <MultiInput label="Facilities" placeholder="Water, Security, Parking..." value={facilitiesList} onChange={setFacilitiesList} />
+                <MultiInput label="Technical Specs" value={specsList} onChange={setSpecsList} />
+                <MultiInput label="Highlights" value={highlightsList} onChange={setHighlightsList} />
+
+                <div className="space-y-1 pt-2 border-t">
                   <label className="text-xs font-bold text-slate-500 uppercase">Description</label>
                   <textarea {...register("description")} className="w-full px-4 py-3 rounded-xl border border-slate-200 h-24 focus:border-blue-500 outline-none" />
                 </div>
-                
-                <MultiInput label="Highlights" value={highlightsList} onChange={setHighlightsList} />
-                <MultiInput label="Technical Specs" value={specsList} onChange={setSpecsList} />
 
-                {/* Configuration Area */}
-                <div className="space-y-6 pt-4 border-t">
+                {/* --- FULL CONFIG UI SECTIONS --- */}
+                <div className="space-y-6 pt-6 border-t">
+                  
+                  {/* RESIDENTIAL CONFIG */}
                   {currentPropertyType === "residential" && (
                     <>
                       <label className="text-sm font-bold">Residential Sub-Types</label>
@@ -351,16 +350,14 @@ export default function UpdateProperty() {
                               <h4 className="text-sm font-bold border-b pb-1">{bhk} Variants</h4>
                               {config[subType][bhk].map((v, i) => (
                                 <div key={i} className="flex flex-col gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
-                                  <div className="flex gap-3 items-end">
-                                    <div className="flex-1"><label className="text-[9px] font-black uppercase">Area</label><input type="number" value={v.area} onChange={e => updateVal(subType, i, 'area', e.target.value, bhk)} className="w-full border-b p-1 text-sm outline-none" /></div>
-                                    <div className="flex-1"><label className="text-[9px] font-black uppercase">Price</label><input type="text" value={v.price} onChange={e => updateVal(subType, i, 'price', e.target.value, bhk)} className="w-full border-b p-1 text-sm outline-none font-bold text-emerald-600" /></div>
-                                    {i > 0 && <button type="button" onClick={() => removeVariant(subType, i, bhk)} className="text-red-400 pb-1"><Trash2 className="w-4 h-4"/></button>}
+                                  <div className="flex flex-col md:flex-row gap-3">
+                                    <div className="flex-1"><label className="text-[9px] font-black uppercase">Area (sqft)</label><input type="number" value={v.area} onChange={e => updateVal(subType, i, 'area', e.target.value, bhk)} className="w-full border-b p-1 text-sm outline-none" /></div>
+                                    <div className="flex-1"><label className="text-[9px] font-black uppercase">Price</label><input type="number" value={v.price} onChange={e => updateVal(subType, i, 'price', e.target.value, bhk)} className="w-full border-b p-1 text-sm outline-none font-bold text-emerald-600" /><p className="text-[9px] font-bold text-blue-500 mt-1">{formatPrice(v.price)}</p></div>
+                                    {i > 0 && <button type="button" onClick={() => removeVariant(subType, i, bhk)} className="text-red-400 self-center"><Trash2 className="w-4 h-4"/></button>}
                                   </div>
-                                  <div className="space-y-1">
+                                  <div className="space-y-1 border-t pt-2">
                                     <label className="text-[9px] font-black uppercase block">Plan Image</label>
-                                    {v.plan && typeof v.plan === 'string' && (
-                                      <span className="text-[9px] bg-white border border-blue-100 px-2 py-0.5 rounded text-blue-600 truncate block mb-1">Old: {getOriginalName(v.plan)}</span>
-                                    )}
+                                    {v.plan && typeof v.plan === 'string' && ( <span className="text-[9px] bg-white border border-blue-100 px-2 py-0.5 rounded text-blue-600 truncate block mb-1">Old: {getOriginalName(v.plan)}</span> )}
                                     <input type="file" onChange={e => updateVal(subType, i, 'plan', e.target.files[0], bhk)} className="text-[10px] block w-full" />
                                   </div>
                                 </div>
@@ -373,35 +370,67 @@ export default function UpdateProperty() {
                     </>
                   )}
 
-                  {(currentPropertyType === "commercial" || currentPropertyType === "plot") && (
+                  {/* COMMERCIAL CONFIG */}
+                  {currentPropertyType === "commercial" && (
                     <>
-                      <label className="text-sm font-bold capitalize">{currentPropertyType} Sub-Types</label>
+                      <label className="text-sm font-bold">Commercial Sub-Types</label>
                       <div className="flex flex-wrap gap-2">
-                        {(currentPropertyType === "commercial" ? ["Shop", "Office", "Showroom"] : ["Residential Plot", "Commercial Plot", "Industrial Plot"]).map(t => (
-                          <button type="button" key={t} onClick={() => toggleMainType(t, currentPropertyType === "commercial" ? commSubTypes : plotSubTypes, currentPropertyType === "commercial" ? setCommSubTypes : setPlotSubTypes)} 
-                          className={`px-4 py-2 rounded-lg border-2 text-sm font-bold ${(currentPropertyType === "commercial" ? commSubTypes : plotSubTypes).includes(t) ? "bg-blue-600 text-white border-blue-600" : "border-slate-100 text-slate-500"}`}>{t}</button>
+                        {["Shop", "Office", "Showroom", "Warehouse"].map(t => (
+                          <button type="button" key={t} onClick={() => toggleMainType(t, commSubTypes, setCommSubTypes)} 
+                          className={`px-4 py-2 rounded-lg border-2 text-sm font-bold ${commSubTypes.includes(t) ? "bg-blue-600 text-white border-blue-600" : "border-slate-100 text-slate-500"}`}>{t}</button>
                         ))}
                       </div>
-                      {(currentPropertyType === "commercial" ? commSubTypes : plotSubTypes).map(subType => (
+                      {commSubTypes.map(subType => (
                         <div key={subType} className="p-5 bg-slate-50 rounded-2xl border-2 border-blue-100 space-y-4">
                           <h3 className="font-extrabold text-blue-700 uppercase">{subType}</h3>
-                          {config[subType]?.map((v, i) => (
+                          {(config[subType] || []).map((v, i) => (
                             <div key={i} className="flex flex-col gap-3 bg-white p-3 rounded-lg border border-slate-200">
-                               <div className="flex gap-3 items-end">
-                                    <div className="flex-1"><label className="text-[9px] font-black uppercase">Area</label><input type="number" value={v.area} onChange={e => updateVal(subType, i, 'area', e.target.value)} className="w-full border-b p-1 text-sm outline-none" /></div>
-                                    <div className="flex-1"><label className="text-[9px] font-black uppercase">Price</label><input type="text" value={v.price} onChange={e => updateVal(subType, i, 'price', e.target.value)} className="w-full border-b p-1 text-sm outline-none font-bold text-emerald-600" /></div>
-                                    {i > 0 && <button type="button" onClick={() => removeVariant(subType, i)} className="text-red-400 pb-1"><Trash2 className="w-4 h-4"/></button>}
-                               </div>
-                               <div className="space-y-1">
-                                    <label className="text-[9px] font-black uppercase block">Plan Image</label>
-                                    {v.plan && typeof v.plan === 'string' && (
-                                      <span className="text-[9px] bg-slate-50 border border-blue-100 px-2 py-0.5 rounded text-blue-600 truncate block mb-1">Old: {getOriginalName(v.plan)}</span>
-                                    )}
-                                    <input type="file" onChange={e => updateVal(subType, i, 'plan', e.target.files[0])} className="text-[10px] block w-full" />
-                               </div>
+                              <div className="flex flex-col md:flex-row gap-3">
+                                <div className="flex-1"><label className="text-[9px] font-black uppercase">Area (sqft)</label><input type="number" value={v.area} onChange={e => updateVal(subType, i, 'area', e.target.value)} className="w-full border-b p-1 text-sm outline-none" /></div>
+                                <div className="flex-1"><label className="text-[9px] font-black uppercase">Price</label><input type="number" value={v.price} onChange={e => updateVal(subType, i, 'price', e.target.value)} className="w-full border-b p-1 text-sm outline-none font-bold text-emerald-600" /><p className="text-[9px] font-bold text-blue-500 mt-1">{formatPrice(v.price)}</p></div>
+                                {i > 0 && <button type="button" onClick={() => removeVariant(subType, i)} className="text-red-400 self-center"><Trash2 className="w-4 h-4"/></button>}
+                              </div>
+                              <div className="space-y-1 border-t pt-2">
+                                <label className="text-[9px] font-black uppercase block">Plan Image</label>
+                                {v.plan && typeof v.plan === 'string' && ( <span className="text-[9px] bg-white border border-blue-100 px-2 py-0.5 rounded text-blue-600 truncate block mb-1">Old: {getOriginalName(v.plan)}</span> )}
+                                <input type="file" onChange={e => updateVal(subType, i, 'plan', e.target.files[0])} className="text-[10px] block w-full" />
+                              </div>
                             </div>
                           ))}
-                          <button type="button" onClick={() => addVariant(subType)} className="text-[11px] text-blue-600 font-bold">+ Add {subType} Variant</button>
+                          <button type="button" onClick={() => addVariant(subType)} className="text-[11px] text-blue-600 font-bold">+ Add Variant</button>
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  {/* PLOT CONFIG */}
+                  {currentPropertyType === "plot" && (
+                    <>
+                      <label className="text-sm font-bold">Plot Types</label>
+                      <div className="flex flex-wrap gap-2">
+                        {["Residential Plot", "Commercial Plot", "Agricultural Land"].map(t => (
+                          <button type="button" key={t} onClick={() => toggleMainType(t, plotSubTypes, setPlotSubTypes)} 
+                          className={`px-4 py-2 rounded-lg border-2 text-sm font-bold ${plotSubTypes.includes(t) ? "bg-blue-600 text-white border-blue-600" : "border-slate-100 text-slate-500"}`}>{t}</button>
+                        ))}
+                      </div>
+                      {plotSubTypes.map(subType => (
+                        <div key={subType} className="p-5 bg-slate-50 rounded-2xl border-2 border-blue-100 space-y-4">
+                          <h3 className="font-extrabold text-blue-700 uppercase">{subType}</h3>
+                          {(config[subType] || []).map((v, i) => (
+                            <div key={i} className="flex flex-col gap-3 bg-white p-3 rounded-lg border border-slate-200">
+                              <div className="flex flex-col md:flex-row gap-3">
+                                <div className="flex-1"><label className="text-[9px] font-black uppercase">Area (sqft)</label><input type="number" value={v.area} onChange={e => updateVal(subType, i, 'area', e.target.value)} className="w-full border-b p-1 text-sm outline-none" /></div>
+                                <div className="flex-1"><label className="text-[9px] font-black uppercase">Price</label><input type="number" value={v.price} onChange={e => updateVal(subType, i, 'price', e.target.value)} className="w-full border-b p-1 text-sm outline-none font-bold text-emerald-600" /><p className="text-[9px] font-bold text-blue-500 mt-1">{formatPrice(v.price)}</p></div>
+                                {i > 0 && <button type="button" onClick={() => removeVariant(subType, i)} className="text-red-400 self-center"><Trash2 className="w-4 h-4"/></button>}
+                              </div>
+                              <div className="space-y-1 border-t pt-2">
+                                <label className="text-[9px] font-black uppercase block">Layout Plan</label>
+                                {v.plan && typeof v.plan === 'string' && ( <span className="text-[9px] bg-white border border-blue-100 px-2 py-0.5 rounded text-blue-600 truncate block mb-1">Old: {getOriginalName(v.plan)}</span> )}
+                                <input type="file" onChange={e => updateVal(subType, i, 'plan', e.target.files[0])} className="text-[10px] block w-full" />
+                              </div>
+                            </div>
+                          ))}
+                          <button type="button" onClick={() => addVariant(subType)} className="text-[11px] text-blue-600 font-bold">+ Add Variant</button>
                         </div>
                       ))}
                     </>
@@ -418,35 +447,25 @@ export default function UpdateProperty() {
             {step === 3 && (
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                 <SectionTitle title="Media Update" icon={<Upload className="w-5 h-5" />} />
-                
                 <div className="space-y-2 p-4 bg-slate-50 rounded-xl border">
                   <label className="text-xs font-bold text-slate-500 uppercase">Cover Image</label>
-                  {existingMedia.coverImage && (
-                    <span className="text-[9px] bg-white border border-blue-100 px-2 py-0.5 rounded text-blue-600 truncate block mb-1">Old: {getOriginalName(existingMedia.coverImage)}</span>
-                  )}
+                  {existingMedia.coverImage && ( <span className="text-[9px] bg-white border border-blue-100 px-2 py-0.5 rounded text-blue-600 truncate block mb-1">Old: {getOriginalName(existingMedia.coverImage)}</span> )}
                   <input type="file" {...register("coverImage")} className="w-full text-sm mt-2" />
                 </div>
-
                 <div className="space-y-2 p-4 bg-slate-50 rounded-xl border">
                   <label className="text-xs font-bold text-slate-500 uppercase">Society Plan</label>
-                  {existingMedia.societyPlan && (
-                    <span className="text-[9px] bg-white border border-blue-100 px-2 py-0.5 rounded text-blue-600 truncate block mb-1">Old: {getOriginalName(existingMedia.societyPlan)}</span>
-                  )}
+                  {existingMedia.societyPlan && ( <span className="text-[9px] bg-white border border-blue-100 px-2 py-0.5 rounded text-blue-600 truncate block mb-1">Old: {getOriginalName(existingMedia.societyPlan)}</span> )}
                   <input type="file" {...register("societyPlan")} className="w-full text-sm mt-2" />
                 </div>
-
                 <div className="space-y-2 p-4 bg-slate-50 rounded-xl border">
                   <label className="text-xs font-bold text-slate-500 uppercase block">Gallery</label>
                   {existingMedia.gallery.length > 0 && (
                     <div className="flex flex-wrap gap-2 my-1">
-                      {existingMedia.gallery.map((g, i) => (
-                        <span key={i} className="text-[9px] bg-white border border-blue-100 px-2 py-0.5 rounded text-blue-600 truncate max-w-[150px]">Old: {getOriginalName(g)}</span>
-                      ))}
+                      {existingMedia.gallery.map((g, i) => ( <span key={i} className="text-[9px] bg-white border border-blue-100 px-2 py-0.5 rounded text-blue-600 truncate max-w-[150px]">Old: {getOriginalName(g)}</span> ))}
                     </div>
                   )}
                   <input type="file" multiple {...register("gallery")} className="w-full text-sm mt-2" />
                 </div>
-
                 <div className="flex gap-4 pt-4">
                   <button type="button" onClick={back} className="bg-slate-200 px-6 py-3 rounded-xl font-bold flex-1">Back</button>
                   <button type="submit" className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex-[2]">Update Property</button>
@@ -461,33 +480,8 @@ export default function UpdateProperty() {
 }
 
 // --- UI HELPERS ---
-function SectionTitle({ title, icon }) {
-  return (
-    <div className="flex items-center gap-3 pb-2 border-b mb-6">
-      <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">{icon}</div>
-      <h2 className="text-xl font-bold text-slate-800">{title}</h2>
-    </div>
-  );
-}
-function Input({ label, register, type = "text" }) {
-  return (
-    <div className="space-y-1 flex-1">
-      <label className="text-xs font-bold text-slate-500 uppercase">{label}</label>
-      <input type={type} {...register} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none" />
-    </div>
-  );
-}
-function Select({ label, options, register }) {
-  return (
-    <div className="space-y-1 flex-1">
-      <label className="text-xs font-bold text-slate-500 uppercase">{label}</label>
-      <select {...register} className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white">
-        <option value="">Select Status</option>
-        {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-      </select>
-    </div>
-  );
-}
+function SectionTitle({ title, icon }) { return <div className="flex items-center gap-3 pb-2 border-b mb-6"><div className="p-2 bg-blue-100 text-blue-600 rounded-lg">{icon}</div><h2 className="text-xl font-bold text-slate-800">{title}</h2></div>; }
+function Input({ label, register, type = "text", placeholder }) { return <div className="space-y-1 flex-1"><label className="text-xs font-bold text-slate-500 uppercase">{label}</label><input type={type} placeholder={placeholder} {...register} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none" /></div>; }
 function Progress({ step }) {
   const steps = ["Basics", "Specs", "Uploads"];
   return (
@@ -495,9 +489,7 @@ function Progress({ step }) {
       <div className="absolute top-1/2 w-full h-0.5 bg-slate-200 -translate-y-1/2 z-0" />
       {steps.map((label, i) => (
         <div key={i} className="relative z-10 flex flex-col items-center gap-2">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${step >= i + 1 ? "bg-blue-600 text-white" : "bg-white text-slate-400 border-2"}`}>
-            {step > i + 1 ? <CheckCircle className="w-6 h-6" /> : i + 1}
-          </div>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${step >= i + 1 ? "bg-blue-600 text-white" : "bg-white text-slate-400 border-2"}`}>{step > i + 1 ? <CheckCircle className="w-6 h-6" /> : i + 1}</div>
           <span className="text-[10px] font-bold uppercase">{label}</span>
         </div>
       ))}

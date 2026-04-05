@@ -103,10 +103,10 @@ const AdminRegister = () => {
                 <input
                   name="name"
                   type="text"
-                  placeholder="SUNNY BHAGURE"
+                  placeholder="Sunny Bhagure"
                   onChange={handleChange}
                   required
-                  className="w-full bg-transparent border-b border-slate-200 focus:border-blue-600 pl-8 pr-4 py-3 font-bold text-slate-800 outline-none transition-all placeholder:text-slate-200 uppercase text-sm"
+                  className="w-full bg-transparent border-b border-slate-200 focus:border-blue-600 pl-8 pr-4 py-3 font-bold text-slate-800 outline-none transition-all placeholder:text-slate-200 text-sm"
                 />
               </div>
             </div>
@@ -119,10 +119,10 @@ const AdminRegister = () => {
                 <input
                   name="companyName"
                   type="text"
-                  placeholder="REALTY CORP"
+                  placeholder="Realty Corp"
                   onChange={handleChange}
                   required
-                  className="w-full bg-transparent border-b border-slate-200 focus:border-blue-600 pl-8 pr-4 py-3 font-bold text-slate-800 outline-none transition-all placeholder:text-slate-200 uppercase text-sm"
+                  className="w-full bg-transparent border-b border-slate-200 focus:border-blue-600 pl-8 pr-4 py-3 font-bold text-slate-800 outline-none transition-all placeholder:text-slate-200 text-sm"
                 />
               </div>
             </div>
@@ -135,10 +135,10 @@ const AdminRegister = () => {
                 <input
                   name="email"
                   type="email"
-                  placeholder="ADMIN@SYSTEM.COM"
+                  placeholder="admin@system.com"
                   onChange={handleChange}
                   required
-                  className="w-full bg-transparent border-b border-slate-200 focus:border-blue-600 pl-8 pr-4 py-3 font-bold text-slate-800 outline-none transition-all placeholder:text-slate-200 uppercase text-sm"
+                  className="w-full bg-transparent border-b border-slate-200 focus:border-blue-600 pl-8 pr-4 py-3 font-bold text-slate-800 outline-none transition-all placeholder:text-slate-200 text-sm"
                 />
               </div>
             </div>
@@ -167,10 +167,10 @@ const AdminRegister = () => {
                 <input
                   name="companyAddress"
                   type="text"
-                  placeholder="STREET 12, BUSINESS DISTRICT"
+                  placeholder="Street 12, Business District"
                   onChange={handleChange}
                   required
-                  className="w-full bg-transparent border-b border-slate-200 focus:border-blue-600 pl-8 pr-4 py-3 font-bold text-slate-800 outline-none transition-all placeholder:text-slate-200 uppercase text-sm"
+                  className="w-full bg-transparent border-b border-slate-200 focus:border-blue-600 pl-8 pr-4 py-3 font-bold text-slate-800 outline-none transition-all placeholder:text-slate-200 text-sm"
                 />
               </div>
             </div>

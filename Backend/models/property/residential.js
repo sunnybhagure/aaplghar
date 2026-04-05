@@ -6,7 +6,7 @@ const residentialSchema = new mongoose.Schema({
   config: { 
     type: mongoose.Schema.Types.Mixed 
   },
-  status: { type: String, enum: ["under_construction", "ready"] }
+  
 });
 
 module.exports = residentialSchema;

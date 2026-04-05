@@ -49,12 +49,6 @@ function Navbar() {
             </Link>
           </li>
 
-          <li>
-            <Link to="/properties" className="hover:text-[#D4AF37]">
-              Properties
-            </Link>
-          </li>
-
           {/* USER LOGIN */}
           {userToken && !adminToken && (
             <>
