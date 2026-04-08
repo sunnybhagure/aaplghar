@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 
 const Property = require("../models/property/propertyMain");
+const Admin = require("../models/Admin"); //
 
 
 
@@ -199,13 +200,12 @@ exports.getPropertiesByBuilder = async (req, res) => {
             });
         }
 
-        // ✅ बदल इथे आहे: .populate('builder') वापरला आहे
-        // यामुळे फक्त ID न येता बिल्डरचे नाव, कंपनी इ. सर्व डेटा येईल.
-        const properties = await Property.find({ 
-            builder: new mongoose.Types.ObjectId(builderId) 
-        })
-        .populate('builder') // 👈 हे अत्यंत महत्त्वाचे आहे
-        .sort({ createdAt: -1 });
+        // Find all properties for this builder
+        const properties = await Property.find({ builder: builderId }).populate({
+            path: "builder",
+            model: "Admin",
+            select: "name email phone companyName"
+        });
 
         // जर प्रॉपर्टीज नसतील तर रिकामी ॲरे पाठवा (क्रॅश होणार नाही)
         if (!properties || properties.length === 0) {

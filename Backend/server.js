@@ -58,8 +58,9 @@ app.use("/uploads", express.static("uploads"));
 
 
 app.use("/api/auth", require("./Controller/UserController"));
-app.use("/api/admin", require("./Controller/AdminController"));
+app.use("/api/admin", require("./routes/admin"));
 app.use("/api/property", require("./routes/property"));
+app.use("/api/appointments", require("./routes/appointment"));
 
 
 

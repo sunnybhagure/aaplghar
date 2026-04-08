@@ -4,7 +4,7 @@ import axios from "axios";
 import { 
   MapPin, IndianRupee, Calendar, User, CheckCircle2, 
   Loader2, ChevronDown, ChevronUp, X, Building2,
-  Trash2, Edit3, MoveHorizontal, MoveVertical
+  Trash2, Edit3, Phone, Clock, Layers
 } from "lucide-react";
 
 // --- Read More Wrapper ---
@@ -45,6 +45,18 @@ export default function PropertyShow() {
   const [openPlanKey, setOpenPlanKey] = useState(null); 
   const [showAllMedia, setShowAllMedia] = useState(false);
 
+  // --- Appointment States ---
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const [appointmentData, setAppointmentData] = useState({
+    name: "",
+    phone: "",
+    date: "",
+    time: "",
+    variant: "", // New Variant Field
+    message: ""
+  });
+  const [bookingLoading, setBookingLoading] = useState(false);
+
   const isAdminOwner = useMemo(() => {
     if (!property) return false;
     const getLoggedInId = () => {
@@ -79,6 +91,70 @@ export default function PropertyShow() {
     fetchDetails();
   }, [id]);
 
+  // Extract Variants for Dropdown
+  const variantOptions = useMemo(() => {
+    if (!property) return [];
+    let variants = [];
+    if (property.propertyType === "residential" && property.residentialDetails?.config) {
+      Object.values(property.residentialDetails.config).forEach(bhkObj => {
+        variants.push(...Object.keys(bhkObj));
+      });
+    } else if (property.propertyType === "commercial") {
+      variants = Object.keys(property.commercialDetails?.config || {});
+    } else if (property.propertyType === "plot") {
+      variants = Object.keys(property.plotDetails?.config || {});
+    }
+    return [...new Set(variants)];
+  }, [property]);
+
+const handleAppointmentSubmit = async (e) => {
+  e.preventDefault();
+  setBookingLoading(true);
+
+  const userDataRaw = localStorage.getItem("user");
+  let currentUserId = null;
+
+  if (userDataRaw) {
+    try {
+      const userObj = JSON.parse(userDataRaw);
+      currentUserId = userObj._id || userObj.id;
+    } catch (err) { console.error(err); }
+  }
+
+  if (!currentUserId) {
+    alert("Please login first!");
+    setBookingLoading(false);
+    return;
+  }
+
+  try {
+    const payload = {
+      property: id,                      // matches controller
+      builder: property?.builder?._id || property?.builder, // matches controller
+      user: currentUserId,               // matches controller
+      userName: appointmentData.name,    // matches controller
+      userPhone: appointmentData.phone,  // matches controller
+      date: appointmentData.date,
+      timeSlot: appointmentData.time,    // matches controller (mapping time to timeSlot)
+      variant: appointmentData.variant,
+      message: appointmentData.message || "I am interested in this property"
+    };
+
+    const res = await axios.post("http://localhost:5000/api/appointments/bookAppointment", payload);
+    
+    if (res.data.success) {
+      alert("Appointment Scheduled Successfully!");
+      setShowAppointmentModal(false);
+      setAppointmentData({ name: "", phone: "", date: "", time: "", variant: "", message: "" });
+    }
+  } catch (err) {
+    console.error("Booking Error:", err.response?.data);
+    alert(err.response?.data?.error || "Error booking appointment.");
+  } finally {
+    setBookingLoading(false);
+  }
+};
+
   const formatPrice = (num) => {
     const val = Number(num);
     if (!val || val <= 0) return "0";
@@ -86,6 +162,38 @@ export default function PropertyShow() {
     else if (val >= 100000) return `${(val / 100000).toFixed(2)} L`;
     else return val.toLocaleString('en-IN'); 
   };
+
+
+  useEffect(() => {
+    const fillAppointmentData = async () => {
+      const savedUser = JSON.parse(localStorage.getItem("user"));
+      if (!savedUser || !showAppointmentModal) return;
+
+      const name = savedUser.name || savedUser.fullName || "";
+      let phone = savedUser.phone || savedUser.mobile || savedUser.phoneNumber || "";
+
+      if (!phone && savedUser.id) {
+        try {
+          const res = await axios.get(`http://localhost:5000/api/auth/user/${savedUser.id}`);
+          if (res.data.success && res.data.user) {
+            phone = res.data.user.phone || phone;
+            const updatedUser = { ...savedUser, phone: res.data.user.phone };
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+          }
+        } catch (err) {
+          console.error("Unable to fetch user phone:", err);
+        }
+      }
+
+      setAppointmentData(prev => ({
+        ...prev,
+        name,
+        phone
+      }));
+    };
+
+    fillAppointmentData();
+  }, [showAppointmentModal]);
 
   const displayTags = useMemo(() => {
     if (!property) return [];
@@ -155,16 +263,16 @@ export default function PropertyShow() {
           </div>
           <div className="hidden md:flex flex-col gap-2 h-full">
             <div className="flex-1 rounded-xl bg-slate-100 overflow-hidden border border-slate-200">
-               {allMedia[0] && <img src={allMedia[0]} onClick={() => setActiveImg(allMedia[0])} className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-all" />}
+                {allMedia[0] && <img src={allMedia[0]} onClick={() => setActiveImg(allMedia[0])} className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-all" />}
             </div>
             <div className="flex-1 rounded-xl bg-slate-100 overflow-hidden border border-slate-200 relative">
-               {allMedia[1] && <img src={allMedia[1]} onClick={() => setActiveImg(allMedia[1])} className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-all" />}
-               {allMedia.length > 2 && (
-                 <div onClick={() => setShowAllMedia(true)} className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center text-white cursor-pointer hover:bg-slate-800 transition-all">
-                    <span className="text-xl font-black">+{allMedia.length - 2}</span>
-                    <span className="text-[8px] font-bold uppercase tracking-widest">Photos</span>
-                 </div>
-               )}
+                {allMedia[1] && <img src={allMedia[1]} onClick={() => setActiveImg(allMedia[1])} className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-all" />}
+                {allMedia.length > 2 && (
+                  <div onClick={() => setShowAllMedia(true)} className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center text-white cursor-pointer hover:bg-slate-800 transition-all">
+                     <span className="text-xl font-black">+{allMedia.length - 2}</span>
+                     <span className="text-[8px] font-bold uppercase tracking-widest">Photos</span>
+                  </div>
+                )}
             </div>
           </div>
         </div>
@@ -259,7 +367,7 @@ export default function PropertyShow() {
             </ReadMoreWrapper>
           </section>
 
-          {/* Facilities (Added Back - Missed earlier) */}
+          {/* Facilities */}
           {property.facilities?.length > 0 && (
             <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
                <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-widest mb-4">Facilities</h4>
@@ -274,7 +382,7 @@ export default function PropertyShow() {
             </section>
           )}
 
-          {/* Property Plan Details (Fixed for All Types) */}
+          {/* Property Plan Details */}
           <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
             <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-widest mb-6">Property Plan Details</h4>
             <div className="space-y-8">
@@ -343,8 +451,8 @@ export default function PropertyShow() {
             <div>
                 <h5 className="text-[10px] font-black uppercase tracking-[3px] mb-6 opacity-40 italic">Inquiry Center</h5>
                 <div className="space-y-3.5">
-                <button className="w-full bg-blue-600 py-4 rounded-xl font-black uppercase text-[11px] tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-900/40">Schedule Call</button>
-                <button className="w-full bg-white/10 py-4 rounded-xl font-black uppercase text-[11px] tracking-widest border border-white/5 hover:bg-white/20 transition-all">Project Details</button>
+                <button onClick={() => setShowAppointmentModal(true)} className="w-full bg-blue-600 py-4 rounded-xl font-black uppercase text-[11px] tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-900/40">Schedule Call</button>
+                <button className="w-full bg-white/10 py-4 rounded-xl font-black uppercase text-[11px] tracking-widest border border-white/5 hover:bg-white/20 transition-all">Download Brochure</button>
                 </div>
             </div>
             <div className="pt-8 border-t border-white/5 flex items-center gap-4">
@@ -373,6 +481,133 @@ export default function PropertyShow() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Appointment Modal */}
+      {showAppointmentModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300">
+            <div className="bg-slate-900 p-6 text-white flex justify-between items-center">
+              <div>
+                <h3 className="font-black uppercase tracking-widest text-lg">Book Visit</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-tighter">Enter details to schedule a call or visit</p>
+              </div>
+              <button onClick={() => setShowAppointmentModal(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="w-5 h-5"/></button>
+            </div>
+            <form onSubmit={handleAppointmentSubmit} className="p-6 space-y-4">
+              {/* Select Variant Dropdown */}
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Select Variant</label>
+                <div className="relative mt-1">
+                  <Layers className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <select 
+                    required 
+                    className="w-full pl-11 pr-10 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black uppercase tracking-tighter focus:outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 appearance-none transition-all cursor-pointer shadow-sm"
+                    value={appointmentData.variant} 
+                    onChange={(e) => setAppointmentData({...appointmentData, variant: e.target.value})}
+                  >
+                    <option value="" disabled className="text-slate-400 font-bold">
+                      Select Property Configuration
+                    </option>
+
+                    {displayTags.flatMap((tag, i) => {
+                      // १. subLabel ला split करा (उदा. "1, 2" किंवा "1BHK, 2BHK")
+                      const individualVariants = tag.subLabel.split(',').map(s => s.trim());
+
+                      return individualVariants.map((variant, j) => {
+                        
+                        // २. तपासणी करा: जर आकडा असेल आणि "BHK" नसेल, तर "BHK" जोडा
+                        // पण जर "Plot" किंवा "Commercial" असेल तर तिथे "BHK" नकोय
+                        let cleanVariant = variant;
+                        const isResidential = tag.label.toLowerCase().includes("Apartment") || tag.label.toLowerCase().includes("Duplex") || tag.label.toLowerCase().includes("villa") || tag.label.toLowerCase().includes("Bungalow") || tag.label.toLowerCase().includes("Rowhouse");
+
+                        if (isResidential && !variant.includes("bhk")) {
+                          cleanVariant = `${variant} BHK`;
+                        }
+
+                        return (
+                          <option 
+                            key={`${i}-${j}`} 
+                            value={cleanVariant} 
+                            className="py-2 font-bold text-slate-700"
+                          >
+                            {/* APARTMENT 1 BHK असं दिसेल */}
+                            {`${tag.label} ${cleanVariant}`.toUpperCase()}
+                          </option>
+                        );
+                      });
+                    })}
+                  </select>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      <ChevronDown size={18} strokeWidth={3} />
+                  </div>                
+                </div>
+              </div>
+
+              {/* Full Name Field */}
+              {/* Full Name */}
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Full Name</label>
+                <div className="relative mt-1">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input 
+                    required 
+                    type="text" 
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:outline-none" 
+                    value={appointmentData.name || ""} 
+                    onChange={(e) => setAppointmentData({...appointmentData, name: e.target.value})} 
+                  />
+                </div>
+              </div>
+
+              {/* Phone Number - 'phone' field database नुसार */}
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Phone Number</label>
+                <div className="relative mt-1">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input 
+                    required 
+                    type="text" // 'tel' ऐवजी 'text' वापरून बघ जर नंबर दिसत नसेल तर
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:outline-none" 
+                    value={appointmentData.phone || ""} 
+                    onChange={(e) => setAppointmentData({...appointmentData, phone: e.target.value})} 
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Date</label>
+                  <div className="relative mt-1">
+                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input required type="date" className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:outline-none" value={appointmentData.date} onChange={(e) => setAppointmentData({...appointmentData, date: e.target.value})} />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Time</label>
+                  <div className="relative mt-1">
+                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input required type="time" className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:outline-none" value={appointmentData.time} onChange={(e) => setAppointmentData({...appointmentData, time: e.target.value})} />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Message (Optional)</label>
+                <textarea 
+                  placeholder="Add any special requests or questions..." 
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-600/20 resize-none h-[100px]" 
+                  value={appointmentData.message} 
+                  onChange={(e) => setAppointmentData({...appointmentData, message: e.target.value})} 
+                />
+              </div>
+
+              <button disabled={bookingLoading} type="submit" className="w-full bg-blue-600 text-white py-4 rounded-xl font-black uppercase text-[11px] tracking-[2px] shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
+                {bookingLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirm Appointment"}
+              </button>
+            </form>
           </div>
         </div>
       )}

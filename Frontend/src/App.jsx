@@ -12,6 +12,7 @@ import PropertyForm from './Pages/addProperty.jsx'
 import PropertyShow from './Pages/propertyShow.jsx'
 import YourProperties from './Pages/yourProperty.jsx'
 import UpdateProperty from './Pages/updateProperty.jsx'
+import UserProfile from './Pages/userProfile.jsx'
 
 function App() {
   
@@ -31,6 +32,7 @@ function App() {
         <Route path="/property/:id" element={<PropertyShow />} />
         <Route path="/my-properties" element={<YourProperties />} />
         <Route path="/update-property/:id" element={<UpdateProperty />} />
+        <Route path="/profile" element={<UserProfile />} />
         
        
 

@@ -5,16 +5,21 @@ import {
   LayoutDashboard, User, Building2, Calendar, 
   Settings, BarChart3, Star, Search, Plus, 
   Edit3, Trash2, CheckCircle2, ChevronRight, Lock, Loader2, Filter,
-  Upload, PlusCircle, Eye, ShieldCheck
+  Upload, PlusCircle, Eye, ShieldCheck, X, Check, AlertTriangle
 } from "lucide-react";
 
 const BuilderDashboard = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("properties");
   const [showPassModal, setShowPassModal] = useState(false);
-  const [pendingAction, setPendingAction] = useState(null); // To track which update was clicked
+  const [pendingAction, setPendingAction] = useState(null); 
   const [loading, setLoading] = useState(true);
   
+  // New States for Profile Editing
+  const [isEditable, setIsEditable] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [passError, setPassError] = useState("");
+
   const [builderData, setBuilderData] = useState(null);
   const [properties, setProperties] = useState([]);
   const [stats, setStats] = useState({ total: 0, cities: [] });
@@ -30,6 +35,21 @@ const BuilderDashboard = () => {
   const [newQ, setNewQ] = useState({ question: "", answer: "" });
   const [showAllQa, setShowAllQa] = useState(false);
 
+  // Cover Image State
+  const [coverImageUrl, setCoverImageUrl] = useState("");
+  const [coverImageFile, setCoverImageFile] = useState(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
+
+const [isPasswordMode, setIsPasswordMode] = useState(false); // Password fields दाखवण्यासाठी
+const [passData, setPassData] = useState({ oldPassword: "", newPassword: "", confirmPassword: "" });
+
+const [appointments, setAppointments] = useState([]);
+const [selectedAppt, setSelectedAppt] = useState(null); // Click केल्यावर detail दाखवण्यासाठी
+const [apptFilter, setApptFilter] = useState("today"); // today, tomorrow, week, all
+const [reason, setReason] = useState(""); // Cancel/Reschedule साठी
+
+const [showAllHistory, setShowAllHistory] = useState(false);
+
   // Price Formatter
   const formatPrice = (num) => {
     if (!num || isNaN(num)) return "0";
@@ -38,7 +58,6 @@ const BuilderDashboard = () => {
     return num.toLocaleString('en-IN');
   };
 
-  // Subtype Extractor
   const getSubtypes = (p) => {
     let types = [];
     if (p.propertyType?.toLowerCase() === "residential") {
@@ -51,24 +70,33 @@ const BuilderDashboard = () => {
     return types.length > 0 ? types : ["N/A"];
   };
 
+  const getBuilderId = () => {
+    const userDataRaw = localStorage.getItem("user");
+    const adminIdRaw = localStorage.getItem("adminId");
+    const builderIdRaw = localStorage.getItem("builderId");
+    
+    // Check in user object first
+    if (userDataRaw) {
+      try {
+        const userObj = JSON.parse(userDataRaw);
+        if (userObj._id || userObj.id) return userObj._id || userObj.id;
+      } catch (e) { console.error("JSON Parse error"); }
+    }
+    
+    // Check separate IDs
+    if (adminIdRaw) return adminIdRaw.replace(/"/g, '');
+    if (builderIdRaw) return builderIdRaw.replace(/"/g, '');
+    
+    return null;
+  };
+
   useEffect(() => {
-    const getBuilderId = () => {
-      const userDataRaw = localStorage.getItem("user");
-      const adminIdRaw = localStorage.getItem("adminId");
-      const builderIdRaw = localStorage.getItem("builderId");
-      if (userDataRaw) {
-        try {
-          const userObj = JSON.parse(userDataRaw);
-          return userObj._id || userObj.id;
-        } catch (e) { return null; }
-      }
-      return (adminIdRaw || builderIdRaw)?.replace(/"/g, '');
-    };
-
     const builderId = getBuilderId();
-
     const fetchData = async () => {
-      if (!builderId) return;
+      if (!builderId) {
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
         const res = await axios.get(`http://localhost:5000/api/property/builder/${builderId}`);
@@ -81,6 +109,10 @@ const BuilderDashboard = () => {
           setQaList(bData.faqs || []);
           const uniqueCities = [...new Set(data.map(p => p.location?.city || p.city))];
           setStats({ total: data.length, cities: uniqueCities });
+        } else {
+          // If no properties, fetch builder data directly from admin route if needed
+          const adminRes = await axios.get(`http://localhost:5000/api/admin/adminprofile/${builderId}`);
+          if(adminRes.data.success) setBuilderData(adminRes.data.data);
         }
       } catch (err) {
         console.error("Error fetching dashboard data:", err);
@@ -91,22 +123,316 @@ const BuilderDashboard = () => {
     fetchData();
   }, []);
 
+  // Load profile data from database when profile tab is opened
+  useEffect(() => {
+    if (activeTab === "profile") {
+      const builderId = getBuilderId();
+      if (builderId) {
+        axios.get(`http://localhost:5000/api/admin/adminprofile/${builderId}`)
+          .then(res => {
+            if (res.data.success) {
+              setBuilderData(res.data.data);
+              setQaList(res.data.data.faqs || []);
+            }
+          })
+          .catch(err => console.error("Error loading profile:", err));
+      }
+    }
+  }, [activeTab]);
+
+  // Fetch appointments when appointments tab is opened
+  useEffect(() => {
+    if (activeTab === "appointments") {
+      const builderId = getBuilderId();
+      if (builderId) {
+        axios.get(`http://localhost:5000/api/appointments/builder/${builderId}`)
+          .then(res => {
+            setAppointments(res.data || []);
+          })
+          .catch(err => console.error("Error loading appointments:", err));
+      }
+    }
+  }, [activeTab]);
+
+  // Helper functions for date filtering
+  const isToday = (dateStr) => {
+    if (!dateStr) return false;
+    const today = new Date().toISOString().split('T')[0];
+    return dateStr === today;
+  };
+
+  const isTomorrow = (dateStr) => {
+    if (!dateStr) return false;
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+    return dateStr === tomorrow;
+  };
+
+  const isThisWeek = (dateStr) => {
+    if (!dateStr) return false;
+    const date = new Date(dateStr);
+    const today = new Date();
+    const weekFromNow = new Date(Date.now() + 7 * 86400000);
+    return date >= today && date <= weekFromNow;
+  };
+
+  // Filter appointments based on apptFilter state
+  const getFilteredAppointments = (appts) => {
+    if (apptFilter === 'all') return appts;
+    if (apptFilter === 'today') return appts.filter(a => isToday(a.date));
+    if (apptFilter === 'tomorrow') return appts.filter(a => isTomorrow(a.date));
+    if (apptFilter === 'week') return appts.filter(a => isThisWeek(a.date));
+    if (apptFilter === 'rescheduled') return appts.filter(a => a.status === 'rescheduled');
+    return appts;
+  };
+
+  // Update Logic
   const handleActionWithPassword = (actionType) => {
     setPendingAction(actionType);
     setShowPassModal(true);
   };
 
-  const handleConfirmPassword = () => {
-    // Password check logic here
-    console.log("Action Authorized:", pendingAction);
-    setShowPassModal(false);
-    // Proceed with the actual update...
+  const handleConfirmPassword = async () => {
+    const adminId = getBuilderId();
+    setPassError("");
+    
+    if(!adminId) {
+        setPassError("User session not found. Please login again.");
+        return;
+    }
+
+    try {
+      const res = await axios.post("http://localhost:5000/api/admin/verify-password", {
+        userId: adminId,
+        password: passwordInput
+      });
+
+      if (res.data.success) {
+        setIsEditable(true);
+        setShowPassModal(false);
+        setPasswordInput("");
+        setPassError("");
+      }
+    } catch (err) {
+      setPassError(err.response?.data?.message || "Invalid Password");
+    }
+  };
+
+  const handleSaveAll = async () => {
+    try {
+      const builderId = getBuilderId();
+      await axios.put(`http://localhost:5000/api/admin/adminprofile/${builderId}`, {
+        ...builderData,
+        faqs: qaList
+      });
+      setIsEditable(false);
+      
+      // Fetch fresh data from database after save
+      const freshDataRes = await axios.get(`http://localhost:5000/api/admin/adminprofile/${builderId}`);
+      if (freshDataRes.data.success) {
+        setBuilderData(freshDataRes.data.data);
+        setQaList(freshDataRes.data.data.faqs || []);
+      }
+      
+      alert("Information Updated Successfully! Data refreshed from database.");
+    } catch (err) {
+      alert("Error saving data.");
+    }
+  };
+
+  const handleApptAction = async (apptId, newStatus) => {
+  if ((newStatus === 'cancelled' || newStatus === 'rescheduled') && !reason.trim()) {
+    alert("Please provide a reason for this action.");
+    return;
+  }
+
+  try {
+    const res = await axios.put(`http://localhost:5000/api/appointments/${apptId}/builder-update`, {
+      status: newStatus,
+      actionReason: reason, // Database मध्ये save होईल
+      updatedAt: new Date()
+    });
+
+    if (res.data) {
+      alert(`Appointment marked as ${newStatus}`);
+      setReason("");
+      setSelectedAppt(null);
+      // Refresh appointments list
+      const builderId = getBuilderId();
+      if (builderId) {
+        const refreshRes = await axios.get(`http://localhost:5000/api/appointments/builder/${builderId}`);
+        setAppointments(refreshRes.data || []);
+      }
+    }
+  } catch (err) {
+    alert("Error updating appointment status: " + (err.response?.data?.message || err.message));
+  }
+};
+
+  const markAllRescheduledAsRead = async () => {
+    const builderId = getBuilderId();
+    if (!builderId) return;
+
+    try {
+      const rescheduledAppts = appointments.filter(a => a.status === 'rescheduled' && a.isNewForBuilder);
+      for (const appt of rescheduledAppts) {
+        await axios.put(`http://localhost:5000/api/appointments/${appt._id}/mark-read-builder`);
+      }
+      
+      // Refresh appointments
+      const refreshRes = await axios.get(`http://localhost:5000/api/appointments/builder/${builderId}`);
+      setAppointments(refreshRes.data || []);
+    } catch (err) {
+      console.error("Error marking appointments as read:", err);
+    }
+  };
+  
+  // Refresh profile data from database
+  const handleRefreshProfile = async () => {
+    try {
+      const builderId = getBuilderId();
+      const res = await axios.get(`http://localhost:5000/api/admin/adminprofile/${builderId}`);
+      if (res.data.success) {
+        setBuilderData(res.data.data);
+        setQaList(res.data.data.faqs || []);
+        alert("Profile data refreshed from database!");
+      }
+    } catch (err) {
+      alert("Error refreshing profile data.");
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setBuilderData({ ...builderData, [field]: value });
   };
 
   const handleAddQa = () => {
     if(newQ.question && newQ.answer) {
       setQaList([newQ, ...qaList]);
       setNewQ({ question: "", answer: "" });
+    }
+  };
+
+ const handleUpdatePassword = async () => {
+    const userId = getBuilderId();
+
+    // Basic Validation
+    if (!passData.oldPassword || !passData.newPassword) {
+        alert("Please fill all password fields.");
+        return;
+    }
+
+    if (passData.newPassword !== passData.confirmPassword) {
+        alert("New passwords do not match!");
+        return;
+    }
+
+    try {
+        const res = await axios.post("http://localhost:5000/api/admin/change-password", {
+            userId: userId,
+            oldPassword: passData.oldPassword,
+            newPassword: passData.newPassword
+        });
+
+        if (res.data.success) {
+            alert("Password successfully updated!");
+            setIsPasswordMode(false); // Box परत normal करा
+            setPassData({ oldPassword: "", newPassword: "", confirmPassword: "" }); // Reset data
+        }
+    } catch (err) {
+        alert(err.response?.data?.message || "Incorrect old password or server error.");
+    }
+};
+
+  // Update Cover Image
+  const handleUploadCoverImage = async () => {
+    if (!coverImageFile) {
+      alert("Please select an image file");
+      return;
+    }
+
+    setUploadingCover(true);
+    try {
+      const builderId = getBuilderId();
+      const formData = new FormData();
+      formData.append("file", coverImageFile);
+      formData.append("builderId", builderId);
+      formData.append("builderName", builderData?.companyName || "Builder");
+
+      const res = await axios.post(
+        "http://localhost:5000/api/admin/upload-cover-image",
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" }
+        }
+      );
+
+      if (res.data.success) {
+        setBuilderData({ ...builderData, coverImage: res.data.imageUrl });
+        setCoverImageFile(null);
+        alert("Cover image uploaded successfully!");
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || "Error uploading cover image.");
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
+  const handleCoverImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert("Please select a valid image file");
+        return;
+      }
+      setCoverImageFile(file);
+    }
+  };
+
+  // Add Q&A to Database
+  const handleAddQaToDB = async () => {
+    if (!newQ.question.trim() || !newQ.answer.trim()) {
+      alert("Please fill both question and answer");
+      return;
+    }
+
+    try {
+      const builderId = getBuilderId();
+      const updatedFaqs = [newQ, ...qaList];
+      
+      await axios.put(`http://localhost:5000/api/admin/adminprofile/${builderId}`, {
+        faqs: updatedFaqs
+      });
+      
+      // Update local state
+      setQaList(updatedFaqs);
+      setNewQ({ question: "", answer: "" });
+      alert("Q&A added successfully!");
+    } catch (err) {
+      alert("Error adding Q&A.");
+    }
+  };
+
+  // Delete Q&A from Database
+  const handleDeleteQa = async (index) => {
+    if (!window.confirm("Are you sure you want to delete this Q&A?")) {
+      return;
+    }
+
+    try {
+      const builderId = getBuilderId();
+      const updatedFaqs = qaList.filter((_, i) => i !== index);
+      
+      await axios.put(`http://localhost:5000/api/admin/adminprofile/${builderId}`, {
+        faqs: updatedFaqs
+      });
+      
+      // Update local state
+      setQaList(updatedFaqs);
+      alert("Q&A deleted successfully!");
+    } catch (err) {
+      alert("Error deleting Q&A.");
     }
   };
 
@@ -182,15 +508,28 @@ const BuilderDashboard = () => {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-24 bg-white/80 backdrop-blur-md border-b border-slate-100 px-10 flex justify-between items-center shrink-0 z-10">
-          <div>
-            <h2 className="text-xl font-black uppercase tracking-tighter italic">Control <span className="text-blue-600">Panel</span></h2>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="bg-blue-600 text-white text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-tighter">Verified Partner</span>
-              <span className="text-slate-300 text-xs font-light">/</span>
-              <span className="text-slate-500 text-[11px] font-black uppercase tracking-tight">{builderData?.companyName || "Aapl Ghar Builder"}</span>
+          <div className="flex items-center gap-4">
+            {builderData?.coverImage ? (
+                <img 
+                    src={builderData.coverImage} 
+                    className="w-12 h-12 rounded-xl object-cover shadow-sm border border-slate-100" 
+                    alt="Builder Profile" 
+                />
+            ) : (
+                <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center border border-slate-100">
+                    <User size={20} className="text-slate-400" />
+                </div>
+            )}
+            <div>
+              <h2 className="text-xl font-black uppercase tracking-tighter italic leading-none">Control <span className="text-blue-600">Panel</span></h2>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="bg-blue-600 text-white text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-tighter">Verified Partner</span>
+                <span className="text-slate-300 text-xs font-light">/</span>
+                <span className="text-slate-500 text-[11px] font-black uppercase tracking-tight truncate max-w-[150px]">{builderData?.companyName || "Aapl Ghar Builder"}</span>
+              </div>
             </div>
           </div>
-          <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-2xl flex items-center gap-2 transition-all shadow-xl shadow-blue-100 active:scale-95 group">
+          <button onClick={() => navigate("/add-property")} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-2xl flex items-center gap-2 transition-all shadow-xl shadow-blue-100 active:scale-95 group">
             <Plus size={18} strokeWidth={3} className="group-hover:rotate-90 transition-transform" /> 
             <span className="font-black text-xs uppercase tracking-widest">Add Property</span>
           </button>
@@ -198,7 +537,6 @@ const BuilderDashboard = () => {
 
         <main className="flex-1 overflow-y-auto p-10 no-scrollbar bg-gradient-to-br from-slate-50 to-white">
           
-          {/* PROPERTIES TAB (SAME LOGIC) */}
           {activeTab === "properties" && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
@@ -254,7 +592,7 @@ const BuilderDashboard = () => {
                   {filteredProperties.length > 0 ? filteredProperties.map((p) => (
                     <div key={p._id} onClick={() => navigate(`/property/${p._id}`)} className="grid grid-cols-8 items-center p-6 hover:bg-blue-50/30 transition-colors cursor-pointer group">
                       <div className="col-span-3 flex items-center gap-4">
-                        <img src={p.images?.coverImage || "https://via.placeholder.com/100"} className="w-12 h-12 rounded-xl object-cover shadow-sm border" alt="p" />
+                        <img src={p.images?.coverImage || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23e2e8f0' width='100' height='100'/%3E%3Ctext x='50%' y='50%' font-size='12' fill='%23999' text-anchor='middle' dy='.3em'%3E No Image%3C/text%3E%3C/svg%3E"} className="w-12 h-12 rounded-xl object-cover shadow-sm border" alt="p" />
                         <div className="overflow-hidden">
                           <p className="font-black text-slate-800 group-hover:text-blue-600 transition-colors uppercase tracking-tighter truncate text-sm leading-tight">{p.title}</p>
                           <p className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">₹{formatPrice(p.price?.starting)} - ₹{formatPrice(p.price?.upto)}</p>
@@ -279,65 +617,211 @@ const BuilderDashboard = () => {
             </div>
           )}
 
-          {/* PROFILE TAB (NEW LOGIC) */}
           {activeTab === "profile" && (
             <div className="max-w-5xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-              
               <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm p-10">
                 <div className="flex items-center justify-between mb-10">
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 bg-blue-600 text-white rounded-[1.5rem] flex items-center justify-center shadow-lg"><User size={28} /></div>
                     <h3 className="text-2xl font-black uppercase tracking-tighter italic">Professional <span className="text-blue-600">Identity</span></h3>
                   </div>
-                  <button onClick={() => handleActionWithPassword("ALL")} className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all">Update All Information</button>
+                  <div className="flex gap-3">
+                    <button onClick={handleRefreshProfile} className="bg-slate-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-700 shadow-xl shadow-slate-100 transition-all">Refresh Data</button>
+                    {!isEditable ? (
+                      <button onClick={() => handleActionWithPassword("ALL")} className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all">Update All Information</button>
+                    ) : (
+                      <button onClick={handleSaveAll} className="bg-green-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-green-700 shadow-xl shadow-green-100 transition-all flex items-center gap-2">
+                          <CheckCircle2 size={14}/> Save Information
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-8">
-                  <ProfileInput label="Company Name" value={builderData?.companyName} onUpdate={() => handleActionWithPassword("companyName")} />
-                  <ProfileInput label="Owner Name" value={builderData?.name} onUpdate={() => handleActionWithPassword("name")} />
-                  <div className="col-span-2"><ProfileInput label="Registered Address" value={builderData?.address} onUpdate={() => handleActionWithPassword("address")} /></div>
-                  <ProfileInput label="Contact Number" value={builderData?.phone} onUpdate={() => handleActionWithPassword("phone")} />
-                  <ProfileInput label="Professional Email" value={builderData?.email} onUpdate={() => handleActionWithPassword("email")} />
-                  
-                  {/* Since & Security */}
-                  <ProfileInput label="Since (Working Since)" value={builderData?.since || "2015"} onUpdate={() => handleActionWithPassword("since")} />
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Security</label>
-                    <button onClick={() => setShowPassModal(true)} className="flex items-center justify-between w-full p-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all">
-                      <span>Change Account Password</span>
-                      <ShieldCheck size={16} />
-                    </button>
+                  <ProfileInput label="Company Name" value={builderData?.companyName} editable={isEditable} onChange={(v) => handleInputChange('companyName', v)} />
+                  <ProfileInput label="Owner Name" value={builderData?.name} editable={isEditable} onChange={(v) => handleInputChange('name', v)} />
+                  <div className="col-span-2"><ProfileInput label="Registered Address" value={builderData?.companyAddress} editable={isEditable} onChange={(v) => handleInputChange('companyAddress', v)} /></div>
+                  <ProfileInput label="Contact Number" value={builderData?.phone} editable={isEditable} onChange={(v) => handleInputChange('phone', v)} />
+                  <ProfileInput label="Professional Email" value={builderData?.email} editable={isEditable} onChange={(v) => handleInputChange('email', v)} />
+                  <ProfileInput label="Working Since" value={builderData?.since} editable={isEditable} onChange={(v) => handleInputChange('since', v)} />                  {/* Custom Change Password Box - Same style as ProfileInput */}
+                  <div className="relative group">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">
+                      Security Settings
+                    </label>
+                    
+                    {!isPasswordMode ? (
+                      <div 
+                        onClick={() => setIsPasswordMode(true)}
+                        className="w-full p-5 bg-slate-50/50 border border-slate-100 rounded-3xl cursor-pointer hover:border-blue-200 hover:bg-white transition-all flex justify-between items-center"
+                      >
+                        <span className="text-sm font-bold text-slate-800 uppercase tracking-tight italic">Change Account Password</span>
+                        <Lock size={16} className="text-blue-600" />
+                      </div>
+                    ) : (
+                      <div className="p-6 bg-white border-2 border-blue-100 rounded-[2rem] shadow-xl shadow-blue-50 space-y-4 animate-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-[10px] font-black text-blue-600 uppercase">Update Password</span>
+                          <X size={16} className="cursor-pointer text-slate-400 hover:text-rose-500" onClick={() => setIsPasswordMode(false)} />
+                        </div>
+                        
+                        <input 
+                          type="password" 
+                          placeholder="Current Password"
+                          className="w-full p-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-xs outline-none focus:ring-2 ring-blue-50"
+                          value={passData.oldPassword}
+                          onChange={(e) => setPassData({...passData, oldPassword: e.target.value})}
+                        />
+                        <input 
+                          type="password" 
+                          placeholder="New Password"
+                          className="w-full p-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-xs outline-none focus:ring-2 ring-blue-50"
+                          value={passData.newPassword}
+                          onChange={(e) => setPassData({...passData, newPassword: e.target.value})}
+                        />
+                        <input 
+                          type="password" 
+                          placeholder="Confirm New Password"
+                          className="w-full p-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-xs outline-none focus:ring-2 ring-blue-50"
+                          value={passData.confirmPassword}
+                          onChange={(e) => setPassData({...passData, confirmPassword: e.target.value})}
+                        />
+                        
+                        <button 
+                          onClick={handleUpdatePassword}
+                          className="w-full bg-blue-600 text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-700 transition-all"
+                        >
+                          Update Password
+                        </button>
+                      </div>
+                    )}
                   </div>
-
                   <div className="col-span-2">
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">About Firm</label>
-                    <div className="relative group">
-                      <textarea className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none min-h-[120px] text-sm font-medium" defaultValue="Building trust and quality homes..."></textarea>
-                      <button onClick={() => handleActionWithPassword("about")} className="absolute top-4 right-4 p-2 bg-white shadow-sm border rounded-xl text-blue-600 opacity-0 group-hover:opacity-100 transition-all"><Edit3 size={14}/></button>
-                    </div>
+                    <textarea 
+                        readOnly={!isEditable}
+                        onChange={(e) => handleInputChange('about', e.target.value)}
+                        className={`w-full p-5 border rounded-3xl outline-none min-h-[120px] text-sm font-medium transition-all ${isEditable ? 'bg-white border-blue-200 ring-4 ring-blue-50' : 'bg-slate-50/50 border-slate-100'}`} 
+                        value={builderData?.about || ""}>
+                    </textarea>
                   </div>
                 </div>
               </div>
 
-              {/* Cover Image Section */}
+              {/* Saved Data Summary */}
+              <div className="bg-blue-50/50 rounded-[3rem] border border-blue-100 shadow-sm p-10">
+                <div className="flex items-center gap-3 mb-6">
+                  <ShieldCheck size={24} className="text-blue-600" />
+                  <h4 className="text-lg font-black uppercase tracking-tighter text-blue-900">Verified <span className="text-blue-600">Data Summary</span></h4>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="bg-white rounded-2xl p-4 border border-blue-100">
+                    <p className="text-[9px] font-black text-blue-600 uppercase mb-1">Company Name</p>
+                    <p className="text-sm font-bold text-slate-800">{builderData?.companyName || "N/A"}</p>
+                  </div>
+                  <div className="bg-white rounded-2xl p-4 border border-blue-100">
+                    <p className="text-[9px] font-black text-blue-600 uppercase mb-1">Owner Name</p>
+                    <p className="text-sm font-bold text-slate-800">{builderData?.name || "N/A"}</p>
+                  </div>
+                  <div className="bg-white rounded-2xl p-4 border border-blue-100">
+                    <p className="text-[9px] font-black text-blue-600 uppercase mb-1">Contact Number</p>
+                    <p className="text-sm font-bold text-slate-800">{builderData?.phone || "N/A"}</p>
+                  </div>
+                  <div className="bg-white rounded-2xl p-4 border border-blue-100">
+                    <p className="text-[9px] font-black text-blue-600 uppercase mb-1">Email</p>
+                    <p className="text-sm font-bold text-slate-800 truncate">{builderData?.email || "N/A"}</p>
+                  </div>
+                  <div className="bg-white rounded-2xl p-4 border border-blue-100">
+                    <p className="text-[9px] font-black text-blue-600 uppercase mb-1">Since</p>
+                    <p className="text-sm font-bold text-slate-800">{builderData?.since || "N/A"}</p>
+                  </div>
+                  <div className="bg-white rounded-2xl p-4 border border-blue-100">
+                    <p className="text-[9px] font-black text-blue-600 uppercase mb-1">Role</p>
+                    <p className="text-sm font-bold text-slate-800 capitalize">{builderData?.role || "N/A"}</p>
+                  </div>
+                  <div className="bg-white rounded-2xl p-4 border border-blue-100 col-span-2">
+                    <p className="text-[9px] font-black text-blue-600 uppercase mb-1">Address</p>
+                    <p className="text-sm font-bold text-slate-800">{builderData?.companyAddress || "N/A"}</p>
+                  </div>
+                  <div className="bg-white rounded-2xl p-4 border border-blue-100">
+                    <p className="text-[9px] font-black text-blue-600 uppercase mb-1">Cover Image</p>
+                    <p className="text-sm font-bold text-slate-800">{builderData?.coverImage ? "✓ Uploaded" : "Not Set"}</p>
+                  </div>
+                  <div className="bg-white rounded-2xl p-4 border border-blue-100 col-span-full">
+                    <p className="text-[9px] font-black text-blue-600 uppercase mb-1">About Firm</p>
+                    <p className="text-sm text-slate-700 line-clamp-2">{builderData?.about || "No description added"}</p>
+                  </div>
+                  <div className="bg-white rounded-2xl p-4 border border-blue-100 col-span-full">
+                    <p className="text-[9px] font-black text-blue-600 uppercase mb-1">Total Q&A Saved</p>
+                    <p className="text-sm font-bold text-slate-800">{qaList?.length || 0} Questions</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cover Image */}
               <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm p-10">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block mb-4">Brand Presence (Cover Image)</label>
-                <div className="relative w-full h-48 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center group overflow-hidden">
-                  {builderData?.coverImage ? (
-                    <img src={builderData.coverImage} className="w-full h-full object-cover" alt="Cover" />
-                  ) : (
-                    <>
-                      <Upload className="text-slate-300 mb-2" size={32} />
-                      <p className="text-[10px] font-black text-slate-400 uppercase">Click to upload cover image</p>
-                    </>
-                  )}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all cursor-pointer">
-                    <button className="bg-white text-slate-900 px-6 py-2 rounded-xl font-black uppercase text-[10px]">Update Image</button>
+                
+                <div className="grid grid-cols-2 gap-8">
+                  {/* Image Preview */}
+                  <div className="relative w-full h-48 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center group overflow-hidden">
+                    {builderData?.coverImage ? (
+                      <img src={builderData.coverImage} className="w-full h-full object-cover" alt="Cover" />
+                    ) : (
+                      <>
+                        <Upload className="text-slate-300 mb-2" size={32} />
+                        <p className="text-[10px] font-black text-slate-400 uppercase">No cover image</p>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Upload Section */}
+                  <div className="flex flex-col gap-4">
+                    <div className="relative">
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        onChange={handleCoverImageChange}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                        id="cover-image-input"
+                      />
+                      <label 
+                        htmlFor="cover-image-input"
+                        className="block w-full h-32 bg-blue-50 border-2 border-dashed border-blue-200 rounded-[2rem] flex flex-col items-center justify-center cursor-pointer hover:bg-blue-100 transition-all group"
+                      >
+                        <Upload className="text-blue-400 mb-2 group-hover:scale-110 transition-transform" size={28} />
+                        <p className="text-[10px] font-black text-blue-600 uppercase">Click to select image</p>
+                        <p className="text-[8px] text-blue-400 mt-1">PNG, JPG, WEBP</p>
+                      </label>
+                    </div>
+
+                    {coverImageFile && (
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-xl">
+                        <p className="text-[9px] font-black text-green-600 uppercase">Selected: {coverImageFile.name}</p>
+                      </div>
+                    )}
+
+                    <button 
+                      onClick={handleUploadCoverImage}
+                      disabled={uploadingCover || !coverImageFile}
+                      className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-100 transition-all flex items-center justify-center gap-2"
+                    >
+                      {uploadingCover ? (
+                        <>
+                          <Loader2 size={14} className="animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={14} />
+                          Upload to Cloudinary
+                        </>
+                      )}
+                    </button>
                   </div>
                 </div>
               </div>
 
-              {/* Cities & Inventory Slider */}
+              {/* Stats and Cities */}
               <div className="grid grid-cols-2 gap-8">
                 <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm p-10 flex flex-col">
                   <div className="flex justify-between items-center mb-6">
@@ -379,10 +863,26 @@ const BuilderDashboard = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                  <input value={newQ.question} onChange={e => setNewQ({...newQ, question: e.target.value})} placeholder="Write a common question..." className="p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none text-sm font-medium" />
+                  <input 
+                    value={newQ.question} 
+                    onChange={e => setNewQ({...newQ, question: e.target.value})} 
+                    placeholder="Write a common question..." 
+                    className="p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none text-sm font-medium" 
+                  />
                   <div className="flex gap-2">
-                    <input value={newQ.answer} onChange={e => setNewQ({...newQ, answer: e.target.value})} placeholder="Provide the answer..." className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none text-sm font-medium" />
-                    <button onClick={handleAddQa} className="bg-slate-900 text-white px-6 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all">Add</button>
+                    <input 
+                      value={newQ.answer} 
+                      onChange={e => setNewQ({...newQ, answer: e.target.value})} 
+                      placeholder="Provide the answer..." 
+                      className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none text-sm font-medium" 
+                    />
+                    <button 
+                      onClick={handleAddQaToDB} 
+                      className="bg-green-600 hover:bg-green-700 text-white px-6 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2"
+                    >
+                      <Plus size={14} />
+                      Add
+                    </button>
                   </div>
                 </div>
 
@@ -396,11 +896,16 @@ const BuilderDashboard = () => {
                   )}
                   {showAllQa && qaList.map((qa, i) => (
                     <div key={i} className="p-6 bg-slate-50 border border-slate-100 rounded-3xl flex justify-between items-start">
-                      <div>
+                      <div className="flex-1">
                         <p className="text-sm font-bold text-slate-800">Q: {qa.question}</p>
                         <p className="text-sm text-slate-500 mt-1">A: {qa.answer}</p>
                       </div>
-                      <button className="text-rose-400 hover:text-rose-600"><Trash2 size={16}/></button>
+                      <button 
+                        onClick={() => handleDeleteQa(i)}
+                        className="text-rose-400 hover:text-rose-600 ml-4 p-2 hover:bg-rose-50 rounded-xl transition-all"
+                      >
+                        <Trash2 size={16}/>
+                      </button>
                     </div>
                   ))}
                   {qaList.length === 0 && <p className="text-center py-10 text-slate-300 font-black uppercase text-[10px]">No questions added yet</p>}
@@ -408,6 +913,135 @@ const BuilderDashboard = () => {
               </div>
             </div>
           )}
+          {activeTab === "appointments" && (
+  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    
+    {/* 1. TOP STATISTICS CARDS */}
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <StatsCard title="Total Appointments" count={appointments.length} icon={<Calendar className="text-blue-600"/>} color="bg-blue-50" />
+      <StatsCard title="Today's Bookings" count={appointments.filter(a => isToday(a.date)).length} icon={<CheckCircle2 className="text-emerald-600"/>} color="bg-emerald-50" />
+      <StatsCard title="Tomorrow" count={appointments.filter(a => isTomorrow(a.date)).length} icon={<Loader2 className="text-amber-600"/>} color="bg-amber-50" />
+      <StatsCard 
+        title="Rescheduled" 
+        count={appointments.filter(a => a.status === 'rescheduled' && a.isNewForBuilder).length} 
+        icon={<AlertTriangle className="text-orange-600"/>} 
+        color="bg-orange-50"
+        hasNotification={appointments.filter(a => a.status === 'rescheduled' && a.isNewForBuilder).length > 0}
+      />
+    </div>
+
+    {/* 2. FILTERS & SEARCH */}
+    <div className="flex flex-wrap gap-3 bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm">
+      {['all', 'today', 'tomorrow', 'week', 'rescheduled'].map((f) => (
+        <button 
+          key={f}
+          onClick={() => setApptFilter(f)}
+          className={`px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${apptFilter === f ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
+        >
+          {f === 'all' ? 'All' : f === 'rescheduled' ? 'Rescheduled' : `${f.charAt(0).toUpperCase() + f.slice(1)}`}
+        </button>
+      ))}
+    </div>
+
+    {/* 3. APPOINTMENT LIST CONTAINER */}
+    <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+      
+      {/* SECTION A: NEW RESCHEDULE REQUESTS (Urgent) */}
+      {appointments.filter(a => a.status === 'rescheduled' && a.isNewForBuilder).length > 0 && (
+        <>
+          <div className="p-6 border-b bg-orange-50/30 flex justify-between items-center">
+            <h4 className="text-[11px] font-black uppercase tracking-widest text-orange-600 flex items-center gap-2">
+              <AlertTriangle size={14} />
+              New Reschedule Requests ({appointments.filter(a => a.status === 'rescheduled' && a.isNewForBuilder).length})
+            </h4>
+            <button 
+              onClick={() => markAllRescheduledAsRead()}
+              className="text-[10px] font-black uppercase text-orange-600 hover:text-orange-700"
+            >
+              Mark All Read
+            </button>
+          </div>
+          <div className="divide-y divide-slate-50 max-h-[400px] overflow-y-auto no-scrollbar">
+            {appointments.filter(a => a.status === 'rescheduled' && a.isNewForBuilder).map((appt) => (
+              <AppointmentItem 
+                key={appt._id} 
+                appt={appt} 
+                isOpen={selectedAppt === appt._id}
+                onClick={() => setSelectedAppt(selectedAppt === appt._id ? null : appt._id)}
+                onAction={handleApptAction}
+                reason={reason}
+                setReason={setReason}
+                isRescheduled={true}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* SECTION B: PENDING, CONFIRMED & ACTIVE APPOINTMENTS */}
+      <div className="p-6 border-b bg-slate-50/30 flex justify-between items-center">
+        <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-500 italic">
+          Active Appointments (Pending & Confirmed)
+        </h4>
+      </div>
+
+      <div className="divide-y divide-slate-50 max-h-[600px] overflow-y-auto no-scrollbar">
+        {getFilteredAppointments(appointments)
+          .filter(a => (['pending', 'confirmed'].includes(a.status) || (a.status === 'rescheduled' && !a.isNewForBuilder)))
+          .length > 0 ? (
+            getFilteredAppointments(appointments)
+              .filter(a => (['pending', 'confirmed'].includes(a.status) || (a.status === 'rescheduled' && !a.isNewForBuilder)))
+              .map((appt) => (
+                <AppointmentItem 
+                  key={appt._id} 
+                  appt={appt} 
+                  isOpen={selectedAppt === appt._id}
+                  onClick={() => setSelectedAppt(selectedAppt === appt._id ? null : appt._id)}
+                  onAction={handleApptAction}
+                  reason={reason}
+                  setReason={setReason}
+                  isRescheduled={appt.status === 'rescheduled'}
+                />
+              ))
+          ) : (
+            <div className="p-10 text-center text-slate-400 text-[10px] font-black uppercase tracking-widest italic">
+              No active appointments found
+            </div>
+          )}
+      </div>
+
+      {/* SECTION C: HISTORY (COMPLETED & CANCELLED) */}
+      <div className="p-6 border-t border-b bg-slate-50/20 flex justify-between items-center mt-4 shadow-inner">
+        <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+          History (Completed & Cancelled)
+        </h4>
+      </div>
+
+      <div className="divide-y divide-slate-50 bg-slate-50/5">
+        {getFilteredAppointments(appointments)
+          .filter(a => ['completed', 'cancelled'].includes(a.status))
+          .length > 0 ? (
+            getFilteredAppointments(appointments)
+              .filter(a => ['completed', 'cancelled'].includes(a.status))
+              .map((appt) => (
+                <AppointmentItem 
+                  key={appt._id} 
+                  appt={appt} 
+                  isOpen={selectedAppt === appt._id}
+                  onClick={() => setSelectedAppt(selectedAppt === appt._id ? null : appt._id)}
+                  isCompact={false}
+                  isHistory={true} 
+                />
+              ))
+          ) : (
+            <div className="p-10 text-center text-slate-300 text-[10px] font-black uppercase tracking-widest italic">
+              History is empty
+            </div>
+          )}
+      </div>
+    </div>
+  </div>
+)}
         </main>
       </div>
 
@@ -420,9 +1054,16 @@ const BuilderDashboard = () => {
               <h3 className="text-xl font-black uppercase tracking-tighter italic">Secure <span className="text-blue-600">Verification</span></h3>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Enter your password to authorize changes</p>
             </div>
-            <input type="password" placeholder="••••••••" className="w-full mt-8 p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none text-center font-bold tracking-widest" />
+            <input 
+                type="password" 
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                placeholder="••••••••" 
+                className={`w-full mt-8 p-5 bg-slate-50 border rounded-2xl outline-none text-center font-bold tracking-widest ${passError ? 'border-rose-500 text-rose-500' : 'border-slate-100'}`} 
+            />
+            {passError && <p className="text-[10px] font-black text-rose-500 uppercase mt-2 text-center">{passError}</p>}
             <div className="grid grid-cols-2 gap-4 mt-10">
-              <button onClick={() => setShowPassModal(false)} className="py-4 px-4 font-black text-[10px] uppercase tracking-widest text-slate-400 bg-slate-50 rounded-2xl hover:bg-slate-100">Cancel</button>
+              <button onClick={() => {setShowPassModal(false); setPassError(""); setPasswordInput("");}} className="py-4 px-4 font-black text-[10px] uppercase tracking-widest text-slate-400 bg-slate-50 rounded-2xl hover:bg-slate-100">Cancel</button>
               <button onClick={handleConfirmPassword} className="py-4 px-4 font-black text-[10px] uppercase tracking-widest text-white bg-blue-600 rounded-2xl hover:bg-blue-700">Confirm</button>
             </div>
           </div>
@@ -434,7 +1075,6 @@ const BuilderDashboard = () => {
   );
 };
 
-// Menu Link Component
 const MenuLink = ({ icon, label, active, onClick }) => (
   <button onClick={onClick} className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all duration-300 group ${active ? 'bg-blue-600 text-white shadow-xl shadow-blue-100' : 'text-slate-400 hover:bg-blue-50 hover:text-blue-600'}`}>
     <span>{icon}</span>
@@ -443,26 +1083,173 @@ const MenuLink = ({ icon, label, active, onClick }) => (
   </button>
 );
 
-// Profile Input with Individual Update Button
-const ProfileInput = ({ label, value, onUpdate }) => (
+const ProfileInput = ({ label, value, editable, onChange }) => (
   <div className="flex flex-col gap-2 relative group">
     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
     <div className="relative">
       <input 
         type="text" 
-        readOnly 
-        value={value || "Not Set"} 
-        className="w-full p-4 bg-slate-50/50 border border-slate-100 rounded-2xl outline-none text-slate-700 font-bold text-sm tracking-tight pr-14" 
+        readOnly={!editable} 
+        value={value || ""} 
+        onChange={(e) => onChange(e.target.value)}
+        className={`w-full p-4 border rounded-2xl outline-none font-bold text-sm tracking-tight transition-all ${editable ? 'bg-white border-blue-200 ring-4 ring-blue-50 text-blue-600' : 'bg-slate-50/50 border-slate-100 text-slate-700'}`} 
       />
-      <button 
-        onClick={onUpdate} 
-        className="absolute right-2 top-2 p-2 bg-white text-blue-600 rounded-xl shadow-sm border border-slate-100 opacity-0 group-hover:opacity-100 transition-all hover:bg-blue-600 hover:text-white"
-        title={`Update ${label}`}
-      >
-        <Edit3 size={14} />
-      </button>
+      {editable && <Check className="absolute right-4 top-4 text-blue-400" size={16} />}
     </div>
   </div>
 );
 
+const AppointmentItem = ({ appt, isOpen, onClick, onAction, reason, setReason, isCompact, isRescheduled, isHistory }) => (
+  <div className="group">
+    <div 
+      onClick={onClick}
+      className={`grid grid-cols-6 items-center p-6 cursor-pointer transition-all ${isOpen ? 'bg-blue-50/50' : isRescheduled ? 'bg-orange-50/50 hover:bg-orange-50' : 'hover:bg-slate-50'}`}
+    >
+      <div className="col-span-2 flex items-center gap-4">
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-xs ${isRescheduled ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-blue-600'}`}>
+          {appt.userName?.charAt(0) || "U"}
+          {isRescheduled && <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>}
+        </div>
+        <div>
+          <p className="font-black text-sm uppercase tracking-tighter text-slate-800">{appt.userName}</p>
+          <p className="text-[9px] text-slate-400 font-bold uppercase">{appt.property?.title || "N/A"}</p>
+          {isRescheduled && appt.oldDate && (
+            <p className="text-[8px] text-orange-600 font-bold">Rescheduled from {appt.oldDate}</p>
+          )}
+        </div>
+      </div>
+      <div className="text-[10px] font-black uppercase italic text-slate-500">{appt.property?.location?.city || "N/A"}</div>
+      <div className="flex flex-col">
+        <span className="text-[10px] font-black text-slate-800">{new Date(appt.date).toLocaleDateString()}</span>
+        <span className="text-[9px] font-bold text-blue-600">{appt.timeSlot}</span>
+        {appt.oldTimeSlot && (
+          <span className="text-[8px] font-bold text-orange-600">Was: {appt.oldTimeSlot}</span>
+        )}
+      </div>
+      <div>
+        <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md ${
+          appt.status === 'completed' ? 'bg-green-100 text-green-600' : 
+          appt.status === 'cancelled' ? 'bg-rose-100 text-rose-600' : 
+          appt.oldDate ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'
+        }`}>
+          {appt.status}
+        </span>
+      </div>
+      <div className="text-right">
+        <ChevronRight size={16} className={`inline transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+      </div>
+    </div>
+
+    {isOpen && !isCompact && (
+      <div className="px-20 py-8 bg-white border-y border-slate-100 animate-in slide-in-from-top-2 duration-300">
+        <div className="grid grid-cols-2 gap-10">
+          <div className="space-y-4">
+            <h5 className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Customer Information</h5>
+            <div className="grid grid-cols-2 gap-4">
+               <InfoBox label="Name" value={appt.userName} />
+               <InfoBox label="Phone" value={appt.userPhone} />
+               <InfoBox label="User Status" value={(appt.userStatus || 'active').charAt(0).toUpperCase() + (appt.userStatus || 'active').slice(1)} />
+               <div className="col-span-2">
+                 <InfoBox label="Customer Note" value={appt.message || "No message provided"} />
+               </div>
+            </div>
+            <h5 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-6">Property Information</h5>
+            <div className="grid grid-cols-2 gap-4">
+               <InfoBox label="Property Title" value={appt.property?.title || "N/A"} />
+               <InfoBox label="Type" value={appt.property?.propertyType || "N/A"} />
+               <InfoBox label="Location" value={appt.property?.location?.area ? `${appt.property.location.area}, ${appt.property.location.city}` : "N/A"} />
+               <InfoBox label="Variant" value={appt.variant || "N/A"} />
+            </div>
+            {appt.actionReason && (
+              <div className="bg-orange-50 p-4 rounded-xl border border-orange-200">
+                <h6 className="text-[10px] font-black text-orange-600 uppercase tracking-widest mb-2">Action Reason</h6>
+                <p className="text-sm text-orange-800">{appt.actionReason}</p>
+              </div>
+            )}
+            <div className="flex gap-3 pt-4">
+              <a href={`tel:${appt.userPhone}`} className="flex-1 flex items-center justify-center gap-2 bg-slate-900 text-white py-3 rounded-xl font-black text-[10px] uppercase hover:bg-slate-800">
+                Contact Customer
+              </a>
+              <a href={`https://wa.me/${appt.userPhone}`} target="_blank" className="flex-1 flex items-center justify-center gap-2 border-2 border-slate-100 py-3 rounded-xl font-black text-[10px] uppercase hover:bg-slate-50">
+                Message (WhatsApp)
+              </a>
+            </div>
+          </div>
+
+          <div className="space-y-4 border-l border-slate-100 pl-10">
+            <h5 className="text-[10px] font-black text-rose-600 uppercase tracking-widest">Appointment Status</h5>
+            
+            {isHistory ? (
+              <div className={`p-6 rounded-3xl border text-center ${appt.status === 'completed' ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
+                <span className={`text-[10px] font-black uppercase tracking-widest ${appt.status === 'completed' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                  {appt.status}
+                </span>
+                <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase italic">This appointment is already {appt.status}</p>
+              </div>
+            ) : (
+              <>
+                {appt.status === 'completed' ? (
+                  <div className="p-6 bg-emerald-50 rounded-3xl border border-emerald-200 text-center">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Completed</span>
+                  </div>
+                ) : appt.status === 'cancelled' ? (
+                  <div className="p-6 bg-rose-50 rounded-3xl border border-rose-200 text-center">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-rose-700">Cancelled</span>
+                  </div>
+                ) : appt.oldDate && isRescheduled ? (
+                  <div className="space-y-4">
+                    <div className="bg-orange-50 p-4 rounded-xl">
+                      <p className="text-sm text-orange-800 mb-2">This appointment was rescheduled by the customer.</p>
+                      <p className="text-xs text-orange-600">Previous: {appt.oldDate} at {appt.oldTimeSlot}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button onClick={() => onAction(appt._id, 'pending')} className="bg-emerald-500 text-white p-3 rounded-xl font-black text-[9px] uppercase hover:bg-emerald-600">Confirm New Time</button>
+                      <button onClick={() => onAction(appt._id, 'cancelled')} className="bg-rose-500 text-white p-3 rounded-xl font-black text-[9px] uppercase hover:bg-rose-600">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <textarea 
+                      placeholder="Reason for Reschedule / Cancellation..."
+                      className="w-full p-4 bg-slate-50 border rounded-2xl text-xs outline-none focus:ring-2 ring-blue-50"
+                      value={reason}
+                      onChange={(e) => setReason(e.target.value)}
+                    />
+                    <div className="grid grid-cols-3 gap-2">
+                      <button onClick={() => onAction(appt._id, 'completed')} className="bg-emerald-500 text-white p-3 rounded-xl font-black text-[9px] uppercase hover:bg-emerald-600">Complete</button>
+                      <button onClick={() => onAction(appt._id, 'rescheduled')} className="bg-amber-500 text-white p-3 rounded-xl font-black text-[9px] uppercase hover:bg-amber-600">Reschedule</button>
+                      <button onClick={() => onAction(appt._id, 'cancelled')} className="bg-rose-500 text-white p-3 rounded-xl font-black text-[9px] uppercase hover:bg-rose-600">Cancel</button>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+);
+
+const InfoBox = ({ label, value }) => (
+  <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+    <p className="text-[8px] font-black text-slate-400 uppercase mb-1">{label}</p>
+    <p className="text-xs font-bold text-slate-800">{value}</p>
+  </div>
+);
+
+const StatsCard = ({ title, count, icon, color, hasNotification }) => (
+  <div className={`p-6 rounded-[2rem] border border-slate-100 shadow-sm ${color} flex items-center justify-between relative`}>
+    <div>
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{title}</p>
+      <h3 className="text-2xl font-black text-slate-900">{count}</h3>
+    </div>
+    <div className="p-4 bg-white rounded-2xl shadow-sm relative">
+      {icon}
+      {hasNotification && (
+        <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white"></div>
+      )}
+    </div>
+  </div>
+);
 export default BuilderDashboard;

@@ -59,12 +59,6 @@ function Navbar() {
               </li>
 
               <li>
-                <Link to="/appointment" className="hover:text-[#D4AF37]">
-                  Appointment
-                </Link>
-              </li>
-
-              <li>
                 <button
                   onClick={handleLogout}
                   className="border border-[#D4AF37] text-[#D4AF37] px-5 py-2 rounded-xl hover:bg-[#D4AF37] hover:text-black transition duration-300"

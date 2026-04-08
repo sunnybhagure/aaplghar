@@ -43,6 +43,7 @@ router.post("/register", async (req, res, next) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
         role: user.role,
       },
     })
@@ -99,6 +100,7 @@ router.post("/login", async (req, res, next) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
         role: user.role,
       },
     })
@@ -120,5 +122,75 @@ router.post("/login", async (req, res, next) => {
 })
 
 
+
+// @route   GET /api/auth/user/:id
+// @desc    Get a user's profile by ID
+// @access  Public
+router.get('/user/:id', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('name email phone role')
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+
+    res.status(200).json({ success: true, user })
+  } catch (error) {
+    console.error('User Fetch error:', error.message)
+    res.status(500).json({ success: false, message: error.message || 'Server error' })
+  }
+})
+
+router.put('/userprofile/:id', async (req, res) => {
+  try {
+    const { name, email, phone, currentPassword, newPassword } = req.body;
+
+    if (!currentPassword) {
+      return res.status(400).json({ success: false, message: 'Current password is required to save profile changes.' });
+    }
+
+    const user = await User.findById(req.params.id).select('+password');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const isMatch = await user.matchPassword(currentPassword);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Current password is incorrect.' });
+    }
+
+    if (email && email !== user.email) {
+      const emailInUse = await User.findOne({ email });
+      if (emailInUse && emailInUse._id.toString() !== user._id.toString()) {
+        return res.status(400).json({ success: false, message: 'Email already in use.' });
+      }
+      user.email = email;
+    }
+
+    if (name) user.name = name;
+    if (phone) user.phone = phone;
+
+    if (newPassword) {
+      if (newPassword.length < 6) {
+        return res.status(400).json({ success: false, message: 'New password must be at least 6 characters.' });
+      }
+      user.password = newPassword;
+    }
+
+    await user.save();
+
+    const updatedUser = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+    };
+
+    res.status(200).json({ success: true, message: 'Profile updated successfully.', user: updatedUser });
+  } catch (error) {
+    console.error('User Profile Update error:', error.message);
+    res.status(500).json({ success: false, message: error.message || 'Server error' });
+  }
+});
 
 module.exports = router
