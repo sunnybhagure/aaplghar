@@ -40,6 +40,13 @@ const propertySchema = new mongoose.Schema({
     },
 
   description: String,
+
+  questions: [
+  {
+    question: String,
+    answer: String
+  }
+],
   
   specification: [String],
   projectArea: String, // Total project area acres madhye

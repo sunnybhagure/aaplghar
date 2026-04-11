@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 
 import { PropertyCard } from "../Components/propertyCard"; 
+import BuilderProfileCard from "../Components/builderProfileCard";
 
 const PropertySlider = ({ children, isEmpty }) => {
   const scrollRef = useRef(null);
@@ -53,6 +54,8 @@ export default function HomePage() {
   const [showCityMenu, setShowCityMenu] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
+  const [builders, setBuilders] = useState([]);
+
   const cities = ["All Cities", "Mumbai", "Pune", "Bangalore", "Noida", "Gurgaon", "Hyderabad", "Delhi", "Chennai", "Kolkata", "Ahmedabad", "Nashik", "Nagpur", "Thane", "PCMC", "Other"];
 
   useEffect(() => {
@@ -76,6 +79,20 @@ export default function HomePage() {
       finally { setLoading(false); }
     };
     fetchProperties();
+  }, []);
+
+  useEffect(() => {
+    const fetchBuilders = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/api/admin/builders");
+        if (response.data.success) {
+          setBuilders(response.data.data);
+        }
+      } catch (error) {
+        console.error("Builders fetch error:", error);
+      }
+    };
+    fetchBuilders();
   }, []);
 
   const suggestions = useMemo(() => {
@@ -325,6 +342,35 @@ export default function HomePage() {
                   <div className="bg-white py-12 rounded-3xl text-center border-2 border-dashed border-slate-200 font-bold text-slate-400 uppercase text-xs tracking-widest">No properties listed in this category</div>
                 )}
               </section>
+              {/* --- 3. NAVIN BUILDERS SECTION (Newly Launched च्या खाली) --- */}
+            <section className="mt-24">
+              <div className="mb-10 px-6 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="h-1.5 w-12 bg-orange-500 rounded-full"></div>
+                  <h2 className="text-3xl font-black text-slate-800 uppercase italic tracking-tighter">
+                    Top Developers
+                  </h2>
+                </div>
+                <button className="text-blue-600 font-black text-xs uppercase tracking-widest hover:underline">
+                  View All Builders
+                </button>
+              </div>
+
+              {builders.length > 0 ? (
+                <PropertySlider>
+                  {builders.map((builder) => (
+                    <div key={builder._id} className="min-w-[320px] md:min-w-[380px] flex-shrink-0">
+                      {/* Builder Card Ithe yeil */}
+                      <BuilderProfileCard builder={builder} />
+                    </div>
+                  ))}
+                </PropertySlider>
+              ) : (
+                <div className="bg-white py-12 rounded-3xl text-center border-2 border-dashed border-slate-200 font-bold text-slate-400 uppercase text-xs tracking-widest">
+                  Loading top developers...
+                </div>
+              )}
+            </section>
           </div>
         )}
       </div>

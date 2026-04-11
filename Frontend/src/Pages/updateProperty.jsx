@@ -74,6 +74,50 @@ const MultiInput = ({ label, placeholder, value = [], onChange }) => {
   );
 };
 
+// --- QUESTIONS & ANSWERS INPUT ---
+const QuestionsInput = ({ label, value = [], onChange }) => {
+  const [q, setQ] = useState("");
+  const [a, setA] = useState("");
+
+  const addQA = () => {
+    if (q.trim() && a.trim()) {
+      onChange([...value, { question: q.trim(), answer: a.trim() }]);
+      setQ("");
+      setA("");
+    }
+  };
+
+  return (
+    <div className="space-y-2 flex-1">
+      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">{label}</label>
+      <div className="space-y-2">
+        <div className="flex gap-2">
+          <input 
+            type="text" value={q} onChange={(e) => setQ(e.target.value)}
+            placeholder="Property Question (e.g. Is it RERA approved?)" 
+            className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 transition-all"
+          />
+          <button type="button" onClick={addQA} className="bg-blue-600 text-white px-6 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-900 transition-all">Add QA</button>
+        </div>
+        <textarea 
+          value={a} onChange={(e) => setA(e.target.value)}
+          placeholder="Detailed Answer..." 
+          className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 transition-all h-20"
+        />
+      </div>
+      <div className="space-y-2 mt-3">
+        {value.map((item, index) => (
+          <div key={index} className="bg-slate-50 p-3 rounded-xl border border-slate-200 relative group">
+            <p className="text-xs font-black text-blue-700 uppercase mb-1">Q: {item.question}</p>
+            <p className="text-sm text-slate-600">A: {item.answer}</p>
+            <button type="button" onClick={() => onChange(value.filter((_, i) => i !== index))} className="absolute top-2 right-2 text-slate-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export default function UpdateProperty() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -99,6 +143,8 @@ export default function UpdateProperty() {
   const [facilitiesList, setFacilitiesList] = useState([]); 
 
   const [existingMedia, setExistingMedia] = useState({ coverImage: "", societyPlan: "", gallery: [] });
+
+  const [questionsList, setQuestionsList] = useState([]); // Questions sathi navin state
 
   const getOriginalName = (path) => {
     if (!path || typeof path !== 'string') return "";
@@ -131,6 +177,7 @@ export default function UpdateProperty() {
         setSpecsList(p.specification || []);
         setLocalitiesList(p.nearbyLocalities || []); 
         setFacilitiesList(p.facilities || []); 
+        setQuestionsList(p.questions || []);
         
         if (p.propertyType === 'residential') {
           setResSubTypes(p.residentialDetails?.propertySubTypes || []);
@@ -232,6 +279,7 @@ export default function UpdateProperty() {
       formData.append("commSubTypes", JSON.stringify(commSubTypes));
       formData.append("plotSubTypes", JSON.stringify(plotSubTypes));
       formData.append("configData", JSON.stringify(config));
+      formData.append("questions", JSON.stringify(questionsList));
 
       Object.keys(config).forEach(subType => {
         if (currentPropertyType === 'residential') {
@@ -322,6 +370,14 @@ export default function UpdateProperty() {
                   <label className="text-xs font-bold text-slate-500 uppercase">Description</label>
                   <textarea {...register("description")} className="w-full px-4 py-3 rounded-xl border border-slate-200 h-24 focus:border-blue-500 outline-none" />
                 </div>
+
+                <div className="pt-4 border-t">
+                <QuestionsInput 
+                  label="Property FAQ's" 
+                  value={questionsList} 
+                  onChange={setQuestionsList} 
+                />
+              </div>
 
                 {/* --- FULL CONFIG UI SECTIONS --- */}
                 <div className="space-y-6 pt-6 border-t">

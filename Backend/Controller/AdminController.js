@@ -5,6 +5,8 @@ const Admin = require("../models/Admin"); //
 const bcrypt = require("bcryptjs");
 const cloudinary = require("../config/cloudinary");
 
+const Property = require("../models/property/propertyMain");
+
 
 
 const generateToken = (id)=>{
@@ -350,4 +352,54 @@ exports.uploadCoverImage = async (req, res) => {
   }
 };
 
+
+exports.getAllBuilders = async (req, res) => {
+    try {
+        const builders = await Admin.find({ role: 'builder' }).select("-password").lean();
+        
+        // Pratyek builder sathi project count fetch karu
+        const buildersWithCount = await Promise.all(builders.map(async (builder) => {
+            const projectCount = await Property.countDocuments({ builder: builder._id });
+            return { ...builder, totalProjects: projectCount };
+        }));
+
+        res.status(200).json({ success: true, data: buildersWithCount });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+
+exports.getBuilderDetails = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // 1. Builder Mahiti
+        const builder = await Admin.findById(id).select("-password").lean();
+        if (!builder) return res.status(404).json({ success: false, message: "Builder not found" });
+
+        // 2. Builder chya srv Properties
+        const properties = await Property.find({ builder: id }).sort({ createdAt: -1 });
+
+        // 3. Stats Calculation
+        const totalProjects = properties.length;
+        const readyPossession = properties.filter(p => p.status === 'ready').length;
+        const underConstruction = properties.filter(p => p.status === 'under_construction').length;
+        
+        // 4. Unique Cities logic
+        const cities = [...new Set(properties.map(p => p.location?.city || p.city))].filter(Boolean);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                builder,
+                properties,
+                stats: { totalProjects, readyPossession, underConstruction },
+                cities
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
 

@@ -50,6 +50,46 @@ const [reason, setReason] = useState(""); // Cancel/Reschedule साठी
 
 const [showAllHistory, setShowAllHistory] = useState(false);
 
+const [reviewType, setReviewType] = useState("property"); // "property" or "builder"
+const [subtypeFilter, setSubtypeFilter] = useState("All");
+const [expandedBuilder, setExpandedBuilder] = useState(true);
+
+// 1. Initial state ashi thev (undefined cha error yenar nahi)
+const [reviewData, setReviewData] = useState({
+    properties: [],
+    builderReviews: [],
+    stats: { // 'state' ऐवजी 'stats' करा
+        totalPropertyReviews: 0,
+        avgPropertyRating: "0.0",
+        totalBuilderReviews: 0,
+        avgBuilderRating: "0.0"
+    }
+});
+const [loadingReviews, setLoadingReviews] = useState(false);
+
+// 1. Reviews Fetch karne (Existing useEffect sarkhech)
+useEffect(() => {
+    if (activeTab === "reviews") {
+        const builderId = getBuilderId();
+        if (builderId) {
+            const fetchReviews = async () => {
+                setLoadingReviews(true);
+                try {
+                    const res = await axios.get(`http://localhost:5000/api/reviews/builder/${builderId}`);
+                    if (res.data.success) {
+                        setReviewData(res.data);
+                    }
+                } catch (err) {
+                    console.error("Reviews fetch error:", err);
+                } finally {
+                    setLoadingReviews(false);
+                }
+            };
+            fetchReviews();
+        }
+    }
+}, [activeTab]); // activeTab change zalyavar trigger hoil
+
   // Price Formatter
   const formatPrice = (num) => {
     if (!num || isNaN(num)) return "0";
@@ -64,7 +104,7 @@ const [showAllHistory, setShowAllHistory] = useState(false);
       types = p.residentialDetails?.propertySubTypes || [];
     } else if (p.propertyType?.toLowerCase() === "commercial") {
       types = p.commercialDetails?.propertySubTypes || [];
-    } else if (p.propertyType?.toLowerCase() === "plots") {
+    } else if (p.propertyType?.toLowerCase() === "plot") {
       types = p.plotDetails?.plotTypes || [];
     }
     return types.length > 0 ? types : ["N/A"];
@@ -472,6 +512,30 @@ const [showAllHistory, setShowAllHistory] = useState(false);
     const input = searchInput.toLowerCase();
     return title.includes(input) || city.includes(input);
   });
+
+// Data extraction with safety checks
+// १. आधी पूर्ण reviewData चेक करा
+const propertyReviewsRaw = reviewData?.properties || [];
+const builderReviewsRaw = reviewData?.builderReviews || [];
+const avgBuilderRating = reviewData?.stats?.avgBuilderRating || (builderReviewsRaw.length > 0 ? (builderReviewsRaw.reduce((sum, rev) => sum + (rev.rating || 0), 0) / builderReviewsRaw.length).toFixed(1) : "0.0");
+
+const filteredReviewsList = propertyReviewsRaw.filter(prop => {
+  const title = prop?.title?.toLowerCase() || "";
+  const city = (prop?.location?.city || prop?.city || "").toLowerCase();
+  const term = (activeSearch || "").toLowerCase();
+  const normalizedType = (prop.propertyType || prop.property?.propertyType || "").toLowerCase();
+  const selectedType = subtypeFilter === "All"
+    ? "all"
+    : subtypeFilter.toLowerCase() === "plots"
+      ? "plot"
+      : subtypeFilter.toLowerCase();
+  const matchesSubtype = subtypeFilter === "All" || normalizedType === selectedType;
+  return (title.includes(term) || city.includes(term)) && matchesSubtype;
+});
+
+  const handleReviewSearch = (value) => {
+    setActiveSearch(value);
+  };
 
   if (loading) {
     return (
@@ -914,131 +978,356 @@ const [showAllHistory, setShowAllHistory] = useState(false);
             </div>
           )}
           {activeTab === "appointments" && (
-  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              
+              {/* 1. TOP STATISTICS CARDS */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <StatsCard title="Total Appointments" count={appointments.length} icon={<Calendar className="text-blue-600"/>} color="bg-blue-50" />
+                <StatsCard title="Today's Bookings" count={appointments.filter(a => isToday(a.date)).length} icon={<CheckCircle2 className="text-emerald-600"/>} color="bg-emerald-50" />
+                <StatsCard title="Tomorrow" count={appointments.filter(a => isTomorrow(a.date)).length} icon={<Loader2 className="text-amber-600"/>} color="bg-amber-50" />
+                <StatsCard 
+                  title="Rescheduled" 
+                  count={appointments.filter(a => a.status === 'rescheduled' && a.isNewForBuilder).length} 
+                  icon={<AlertTriangle className="text-orange-600"/>} 
+                  color="bg-orange-50"
+                  hasNotification={appointments.filter(a => a.status === 'rescheduled' && a.isNewForBuilder).length > 0}
+                />
+              </div>
+
+              {/* 2. FILTERS & SEARCH */}
+              <div className="flex flex-wrap gap-3 bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm">
+                {['all', 'today', 'tomorrow', 'week', 'rescheduled'].map((f) => (
+                  <button 
+                    key={f}
+                    onClick={() => setApptFilter(f)}
+                    className={`px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${apptFilter === f ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
+                  >
+                    {f === 'all' ? 'All' : f === 'rescheduled' ? 'Rescheduled' : `${f.charAt(0).toUpperCase() + f.slice(1)}`}
+                  </button>
+                ))}
+              </div>
+
+              {/* 3. APPOINTMENT LIST CONTAINER */}
+              <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+                
+                {/* SECTION A: NEW RESCHEDULE REQUESTS (Urgent) */}
+                {appointments.filter(a => a.status === 'rescheduled' && a.isNewForBuilder).length > 0 && (
+                  <>
+                    <div className="p-6 border-b bg-orange-50/30 flex justify-between items-center">
+                      <h4 className="text-[11px] font-black uppercase tracking-widest text-orange-600 flex items-center gap-2">
+                        <AlertTriangle size={14} />
+                        New Reschedule Requests ({appointments.filter(a => a.status === 'rescheduled' && a.isNewForBuilder).length})
+                      </h4>
+                      <button 
+                        onClick={() => markAllRescheduledAsRead()}
+                        className="text-[10px] font-black uppercase text-orange-600 hover:text-orange-700"
+                      >
+                        Mark All Read
+                      </button>
+                    </div>
+                    <div className="divide-y divide-slate-50 max-h-[400px] overflow-y-auto no-scrollbar">
+                      {appointments.filter(a => a.status === 'rescheduled' && a.isNewForBuilder).map((appt) => (
+                        <AppointmentItem 
+                          key={appt._id} 
+                          appt={appt} 
+                          isOpen={selectedAppt === appt._id}
+                          onClick={() => setSelectedAppt(selectedAppt === appt._id ? null : appt._id)}
+                          onAction={handleApptAction}
+                          reason={reason}
+                          setReason={setReason}
+                          isRescheduled={true}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {/* SECTION B: PENDING, CONFIRMED & ACTIVE APPOINTMENTS */}
+                <div className="p-6 border-b bg-slate-50/30 flex justify-between items-center">
+                  <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-500 italic">
+                    Active Appointments (Pending & Confirmed)
+                  </h4>
+                </div>
+
+                <div className="divide-y divide-slate-50 max-h-[600px] overflow-y-auto no-scrollbar">
+                  {getFilteredAppointments(appointments)
+                    .filter(a => (['pending', 'confirmed'].includes(a.status) || (a.status === 'rescheduled' && !a.isNewForBuilder)))
+                    .length > 0 ? (
+                      getFilteredAppointments(appointments)
+                        .filter(a => (['pending', 'confirmed'].includes(a.status) || (a.status === 'rescheduled' && !a.isNewForBuilder)))
+                        .map((appt) => (
+                          <AppointmentItem 
+                            key={appt._id} 
+                            appt={appt} 
+                            isOpen={selectedAppt === appt._id}
+                            onClick={() => setSelectedAppt(selectedAppt === appt._id ? null : appt._id)}
+                            onAction={handleApptAction}
+                            reason={reason}
+                            setReason={setReason}
+                            isRescheduled={appt.status === 'rescheduled'}
+                          />
+                        ))
+                    ) : (
+                      <div className="p-10 text-center text-slate-400 text-[10px] font-black uppercase tracking-widest italic">
+                        No active appointments found
+                      </div>
+                    )}
+                </div>
+
+                {/* SECTION C: HISTORY (COMPLETED & CANCELLED) */}
+                <div className="p-6 border-t border-b bg-slate-50/20 flex justify-between items-center mt-4 shadow-inner">
+                  <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+                    History (Completed & Cancelled)
+                  </h4>
+                </div>
+
+                <div className="divide-y divide-slate-50 bg-slate-50/5">
+                  {getFilteredAppointments(appointments)
+                    .filter(a => ['completed', 'cancelled'].includes(a.status))
+                    .length > 0 ? (
+                      getFilteredAppointments(appointments)
+                        .filter(a => ['completed', 'cancelled'].includes(a.status))
+                        .map((appt) => (
+                          <AppointmentItem 
+                            key={appt._id} 
+                            appt={appt} 
+                            isOpen={selectedAppt === appt._id}
+                            onClick={() => setSelectedAppt(selectedAppt === appt._id ? null : appt._id)}
+                            isCompact={false}
+                            isHistory={true} 
+                          />
+                        ))
+                    ) : (
+                      <div className="p-10 text-center text-slate-300 text-[10px] font-black uppercase tracking-widest italic">
+                        History is empty
+                      </div>
+                    )}
+                </div>
+              </div>
+            </div>
+          )}
+         {activeTab === "reviews" && (
+  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
     
-    {/* 1. TOP STATISTICS CARDS */}
+    {/* १. STATISTICS CARDS */}
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-      <StatsCard title="Total Appointments" count={appointments.length} icon={<Calendar className="text-blue-600"/>} color="bg-blue-50" />
-      <StatsCard title="Today's Bookings" count={appointments.filter(a => isToday(a.date)).length} icon={<CheckCircle2 className="text-emerald-600"/>} color="bg-emerald-50" />
-      <StatsCard title="Tomorrow" count={appointments.filter(a => isTomorrow(a.date)).length} icon={<Loader2 className="text-amber-600"/>} color="bg-amber-50" />
-      <StatsCard 
-        title="Rescheduled" 
-        count={appointments.filter(a => a.status === 'rescheduled' && a.isNewForBuilder).length} 
-        icon={<AlertTriangle className="text-orange-600"/>} 
-        color="bg-orange-50"
-        hasNotification={appointments.filter(a => a.status === 'rescheduled' && a.isNewForBuilder).length > 0}
-      />
+      <div 
+        onClick={() => setReviewType("property")}
+        className={`p-6 rounded-[2.5rem] border-2 transition-all cursor-pointer shadow-sm ${reviewType === "property" ? 'border-blue-600 bg-white ring-4 ring-blue-50' : 'border-slate-100 bg-slate-50/50 hover:border-blue-200'}`}
+      >
+        <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Property Reviews</p>
+        <div className="flex items-baseline gap-2">
+          <h3 className="text-3xl font-black italic text-slate-900">{reviewData?.stats?.totalPropertyReviews ?? propertyReviewsRaw.reduce((count, prop) => count + (prop.reviews?.length || 0), 0)}</h3>
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Listed</span>
+        </div>
+      </div>
+
+      <div 
+        onClick={() => setReviewType("builder")}
+        className={`p-6 rounded-[2.5rem] border-2 transition-all cursor-pointer shadow-sm ${reviewType === "builder" ? 'border-blue-600 bg-white ring-4 ring-blue-50' : 'border-slate-100 bg-slate-50/50 hover:border-blue-200'}`}
+      >
+        <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Builder Reviews</p>
+        <div className="flex items-baseline gap-2">
+          <h3 className="text-3xl font-black italic text-slate-900">{builderReviewsRaw.length}</h3>
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Total</span>
+        </div>
+      </div>
+
+      <div className="p-6 rounded-[2.5rem] border border-slate-100 bg-white shadow-sm">
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Avg. Property Rating</p>
+        <div className="flex items-center gap-2">
+          <h3 className="text-3xl font-black italic text-yellow-500">{reviewData?.stats?.avgPropertyRating || "0.0"}</h3>
+          <Star size={20} className="fill-yellow-500 text-yellow-500" />
+        </div>
+      </div>
+
+      <div className="p-6 rounded-[2.5rem] border border-slate-100 bg-white shadow-sm">
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Direct Feedback</p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h3 className="text-3xl font-black italic text-blue-600">{avgBuilderRating}</h3>
+            <p className="text-[10px] text-slate-400 uppercase tracking-widest">Avg Builder Rating</p>
+          </div>
+          <div className="text-[10px] font-black uppercase text-blue-600 bg-blue-50 px-4 py-2 rounded-xl">
+            {reviewData?.stats?.totalBuilderReviews || builderReviewsRaw.length || 0} Reviews
+          </div>
+        </div>
+      </div>
     </div>
 
-    {/* 2. FILTERS & SEARCH */}
-    <div className="flex flex-wrap gap-3 bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm">
-      {['all', 'today', 'tomorrow', 'week', 'rescheduled'].map((f) => (
-        <button 
-          key={f}
-          onClick={() => setApptFilter(f)}
-          className={`px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${apptFilter === f ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
-        >
-          {f === 'all' ? 'All' : f === 'rescheduled' ? 'Rescheduled' : `${f.charAt(0).toUpperCase() + f.slice(1)}`}
-        </button>
-      ))}
-    </div>
-
-    {/* 3. APPOINTMENT LIST CONTAINER */}
-    <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
-      
-      {/* SECTION A: NEW RESCHEDULE REQUESTS (Urgent) */}
-      {appointments.filter(a => a.status === 'rescheduled' && a.isNewForBuilder).length > 0 && (
-        <>
-          <div className="p-6 border-b bg-orange-50/30 flex justify-between items-center">
-            <h4 className="text-[11px] font-black uppercase tracking-widest text-orange-600 flex items-center gap-2">
-              <AlertTriangle size={14} />
-              New Reschedule Requests ({appointments.filter(a => a.status === 'rescheduled' && a.isNewForBuilder).length})
-            </h4>
+    {/* २. SEARCH & FILTERS (फक्त Property साठी) */}
+    {reviewType === "property" && (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
+        <div className="relative">
+          <Search className="absolute left-4 top-3.5 text-slate-300" size={18} />
+          <input 
+            type="text" 
+            placeholder="Search property reviews..." 
+            className="w-full pl-12 pr-4 py-3.5 bg-slate-50/50 border border-slate-100 rounded-2xl outline-none text-sm font-medium focus:ring-2 ring-blue-50"
+            onChange={(e) => handleReviewSearch(e.target.value)}
+          />
+        </div>
+        <div className="flex gap-2">
+          {["All", "Residential", "Commercial", "Plot"].map((type) => (
             <button 
-              onClick={() => markAllRescheduledAsRead()}
-              className="text-[10px] font-black uppercase text-orange-600 hover:text-orange-700"
+              key={type}
+              onClick={() => setSubtypeFilter(type)}
+              className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${subtypeFilter === type ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
             >
-              Mark All Read
+              {type}
             </button>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {/* ३. DATA LIST AREA */}
+    <div className="space-y-4">
+      {loadingReviews ? (
+        <div className="p-20 text-center"><Loader2 className="animate-spin mx-auto text-blue-600" /></div>
+      ) : reviewType === "property" ? (
+        filteredReviewsList.length > 0 ? (
+          filteredReviewsList.map((prop) => {
+            const avgRating = prop.reviews.length > 0 ? (prop.reviews.reduce((sum, r) => sum + r.rating, 0) / prop.reviews.length).toFixed(1) : "0.0";
+            return (
+            <div key={prop._id} className="bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden shadow-sm mb-4">
+              <div className="p-6 flex justify-between items-center bg-slate-50/30 border-b border-slate-100">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-slate-200 rounded-2xl flex items-center justify-center">
+                    <Building2 className="text-slate-400" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="flex gap-0.5">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} size={12} className={i < Math.floor(avgRating) ? "fill-yellow-400 text-yellow-400" : "text-slate-200"} />
+                        ))}
+                      </div>
+                      <span className="text-[10px] font-bold text-yellow-600">{avgRating}</span>
+                    </div>
+                    <h4 className="font-black text-slate-800 uppercase italic tracking-tighter">{prop.title}</h4>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">{prop.location?.city || prop.city}</p>
+                  </div>
+                </div>
+                <div className="text-[10px] font-black uppercase text-blue-600 bg-blue-50 px-4 py-2 rounded-xl">
+                  {prop.reviews?.length || 0} Reviews
+                </div>
+              </div>
+              
+              <div className="p-6">
+                <div className="grid grid-cols-3 gap-4 max-h-[400px] overflow-y-auto">
+                  {prop.reviews && prop.reviews.length > 0 ? (
+                      prop.reviews.map((rev, idx) => (
+                          <div key={idx} className="p-5 bg-slate-50/50 rounded-3xl border border-slate-50">
+                            <div className="flex gap-0.5 mb-2">
+                              {[...Array(5)].map((_, i) => (
+                                <Star key={i} size={10} className={i < rev.rating ? "fill-yellow-400 text-yellow-400" : "text-slate-200"} />
+                              ))}
+                            </div>
+                            <p className="text-xs text-slate-600 italic mb-2">"{rev.comment || rev.message || "No comment"}"</p>
+                            <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight">— {rev.user?.name || rev.username || "Anonymous"}</p>
+                          </div>
+                      ))
+                  ) : (
+                      <p className="text-[10px] text-slate-400 italic p-4 col-span-3">No specific reviews for this property.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+            );
+          })
+        ) : (
+          <div className="p-20 text-center bg-white rounded-[2.5rem] border border-dashed text-slate-400 font-bold uppercase italic">
+            No properties found matching your search.
           </div>
-          <div className="divide-y divide-slate-50 max-h-[400px] overflow-y-auto no-scrollbar">
-            {appointments.filter(a => a.status === 'rescheduled' && a.isNewForBuilder).map((appt) => (
-              <AppointmentItem 
-                key={appt._id} 
-                appt={appt} 
-                isOpen={selectedAppt === appt._id}
-                onClick={() => setSelectedAppt(selectedAppt === appt._id ? null : appt._id)}
-                onAction={handleApptAction}
-                reason={reason}
-                setReason={setReason}
-                isRescheduled={true}
-              />
-            ))}
-          </div>
-        </>
+        )
+      ) : (
+        /* BUILDER REVIEWS GRID */
+        <div className="w-full">
+  {/* Header Section */}
+  <div 
+    className="p-6 flex justify-between items-center bg-slate-50/30 border-b border-slate-100 cursor-pointer hover:bg-slate-50/50 transition-all rounded-t-2xl"
+    onClick={() => setExpandedBuilder(!expandedBuilder)}
+  >
+    <div className="flex items-center gap-4">
+      <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center">
+        <ShieldCheck className="text-blue-600" />
+      </div>
+      <div>
+        <h4 className="font-black text-slate-800 uppercase italic tracking-tighter">Builder Feedback</h4>
+        <p className="text-[10px] font-bold text-slate-400 uppercase">Direct reviews from users</p>
+      </div>
+    </div>
+    
+    <div className="flex items-center gap-3">
+      <div className="text-[10px] font-black uppercase text-blue-600 bg-blue-50 px-4 py-2 rounded-xl">
+        {builderReviewsRaw.length} Reviews
+      </div>
+      <ChevronRight className={`text-slate-400 transition-transform ${expandedBuilder ? 'rotate-90' : ''}`} size={16} />
+    </div>
+  </div>
+
+  {/* Reviews Grid Section */}
+  {expandedBuilder && (
+    <div className="p-6 bg-white border border-t-0 border-slate-100 rounded-b-2xl">
+      {/* Scrollable Container with Grid */}
+      <div className="max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 justify-center">
+          {builderReviewsRaw.length > 0 ? (
+            builderReviewsRaw.map((rev, idx) => (
+              <div 
+                key={idx} 
+                className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between min-h-[200px]"
+              >
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-black text-xs">
+                      {(rev.user?.name || rev.username || "U").charAt(0)}
+                    </div>
+                    <div className="flex gap-0.5">
+                      {[...Array(5)].map((_, i) => (
+                        <Star 
+                          key={i} 
+                          size={12} 
+                          className={i < rev.rating ? "fill-blue-600 text-blue-600" : "text-slate-200"} 
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-sm text-slate-700 font-medium mb-4 leading-relaxed italic line-clamp-4">
+                    "{rev.comment || rev.message}"
+                  </p>
+                </div>
+
+                <div className="pt-4 border-t border-slate-50 flex justify-between items-center mt-auto">
+                  <p className="text-[10px] font-black uppercase text-slate-900 truncate max-w-[100px]">
+                    {rev.user?.name || rev.username || "Anonymous"}
+                  </p>
+                  <p className="text-[9px] font-bold text-slate-400">
+                    {rev.createdAt ? new Date(rev.createdAt).toLocaleDateString() : 'Recent'}
+                  </p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="col-span-full py-10 text-center">
+              <p className="text-[12px] text-slate-400 italic">No direct builder feedback yet.</p>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {builderReviewsRaw.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-slate-50 text-center">
+          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+            End of Reviews
+          </p>
+        </div>
       )}
-
-      {/* SECTION B: PENDING, CONFIRMED & ACTIVE APPOINTMENTS */}
-      <div className="p-6 border-b bg-slate-50/30 flex justify-between items-center">
-        <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-500 italic">
-          Active Appointments (Pending & Confirmed)
-        </h4>
-      </div>
-
-      <div className="divide-y divide-slate-50 max-h-[600px] overflow-y-auto no-scrollbar">
-        {getFilteredAppointments(appointments)
-          .filter(a => (['pending', 'confirmed'].includes(a.status) || (a.status === 'rescheduled' && !a.isNewForBuilder)))
-          .length > 0 ? (
-            getFilteredAppointments(appointments)
-              .filter(a => (['pending', 'confirmed'].includes(a.status) || (a.status === 'rescheduled' && !a.isNewForBuilder)))
-              .map((appt) => (
-                <AppointmentItem 
-                  key={appt._id} 
-                  appt={appt} 
-                  isOpen={selectedAppt === appt._id}
-                  onClick={() => setSelectedAppt(selectedAppt === appt._id ? null : appt._id)}
-                  onAction={handleApptAction}
-                  reason={reason}
-                  setReason={setReason}
-                  isRescheduled={appt.status === 'rescheduled'}
-                />
-              ))
-          ) : (
-            <div className="p-10 text-center text-slate-400 text-[10px] font-black uppercase tracking-widest italic">
-              No active appointments found
-            </div>
-          )}
-      </div>
-
-      {/* SECTION C: HISTORY (COMPLETED & CANCELLED) */}
-      <div className="p-6 border-t border-b bg-slate-50/20 flex justify-between items-center mt-4 shadow-inner">
-        <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400">
-          History (Completed & Cancelled)
-        </h4>
-      </div>
-
-      <div className="divide-y divide-slate-50 bg-slate-50/5">
-        {getFilteredAppointments(appointments)
-          .filter(a => ['completed', 'cancelled'].includes(a.status))
-          .length > 0 ? (
-            getFilteredAppointments(appointments)
-              .filter(a => ['completed', 'cancelled'].includes(a.status))
-              .map((appt) => (
-                <AppointmentItem 
-                  key={appt._id} 
-                  appt={appt} 
-                  isOpen={selectedAppt === appt._id}
-                  onClick={() => setSelectedAppt(selectedAppt === appt._id ? null : appt._id)}
-                  isCompact={false}
-                  isHistory={true} 
-                />
-              ))
-          ) : (
-            <div className="p-10 text-center text-slate-300 text-[10px] font-black uppercase tracking-widest italic">
-              History is empty
-            </div>
-          )}
-      </div>
+    </div>
+  )}
+</div>
+      )}
     </div>
   </div>
 )}

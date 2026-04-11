@@ -140,12 +140,13 @@ router.get('/user/:id', async (req, res) => {
   }
 })
 
-router.put('/userprofile/:id', async (req, res) => {
+// १. फंक्शन सिग्नेचरमध्ये 'next' ॲड करा
+router.put('/userprofile/:id', async (req, res, next) => { 
   try {
     const { name, email, phone, currentPassword, newPassword } = req.body;
 
     if (!currentPassword) {
-      return res.status(400).json({ success: false, message: 'Current password is required to save profile changes.' });
+      return res.status(400).json({ success: false, message: 'Current password is required.' });
     }
 
     const user = await User.findById(req.params.id).select('+password');
@@ -158,38 +159,31 @@ router.put('/userprofile/:id', async (req, res) => {
       return res.status(401).json({ success: false, message: 'Current password is incorrect.' });
     }
 
+    // डेटा अपडेट करा
+    if (name) user.name = name;
+    if (phone) user.phone = phone;
+    
     if (email && email !== user.email) {
       const emailInUse = await User.findOne({ email });
-      if (emailInUse && emailInUse._id.toString() !== user._id.toString()) {
-        return res.status(400).json({ success: false, message: 'Email already in use.' });
-      }
+      if (emailInUse) return res.status(400).json({ success: false, message: 'Email already in use.' });
       user.email = email;
     }
 
-    if (name) user.name = name;
-    if (phone) user.phone = phone;
-
     if (newPassword) {
-      if (newPassword.length < 6) {
-        return res.status(400).json({ success: false, message: 'New password must be at least 6 characters.' });
-      }
       user.password = newPassword;
     }
 
     await user.save();
 
-    const updatedUser = {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-    };
+    res.status(200).json({ 
+      success: true, 
+      user: { id: user._id, name: user.name, email: user.email, phone: user.phone, role: user.role } 
+    });
 
-    res.status(200).json({ success: true, message: 'Profile updated successfully.', user: updatedUser });
   } catch (error) {
-    console.error('User Profile Update error:', error.message);
-    res.status(500).json({ success: false, message: error.message || 'Server error' });
+    console.error('Update Error:', error);
+    // जर इथे 'next(error)' असेल तर ते काढून टाका किंवा वर 'next' डिफाइन करा
+    res.status(500).json({ success: false, message: 'Server Error' });
   }
 });
 

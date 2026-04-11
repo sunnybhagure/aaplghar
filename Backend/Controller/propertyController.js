@@ -3,6 +3,63 @@ const mongoose = require('mongoose');
 
 const Property = require("../models/property/propertyMain");
 const Admin = require("../models/Admin"); //
+const cloudinary = require("../config/cloudinary");
+
+const parseCloudinaryPublicId = (url) => {
+  if (!url || typeof url !== "string") return null;
+  
+  // URL madhun 'upload/v12345/' nantar cha purna bhag extract karel
+  const parts = url.split('/');
+  const uploadIndex = parts.indexOf('upload');
+  if (uploadIndex === -1) return null;
+
+  // v12345 (version number) asel tar tyala skip kara
+  const startIndex = parts[uploadIndex + 1].startsWith('v') ? uploadIndex + 2 : uploadIndex + 1;
+  
+  const publicIdWithExt = parts.slice(startIndex).join('/');
+  return publicIdWithExt.split('.')[0]; // extension (.jpg) kadhun taka
+};
+
+const deleteCloudinaryResource = async (url) => {
+  const publicId = parseCloudinaryPublicId(url);
+  if (!publicId) return null;
+  
+  // Console log karun bagha publicId kay yet aahe
+  console.log("Attempting to delete Public ID:", publicId);
+
+  // 'image' resource type specify kara, jar images astil tar
+  return cloudinary.uploader.destroy(publicId, { resource_type: "image" });
+};
+
+const collectPropertyMediaUrls = (property) => {
+  const urls = [];
+  const imagesContainer = property.images?.images || property.images || {};
+
+  if (imagesContainer.coverImage) urls.push(imagesContainer.coverImage);
+  if (imagesContainer.societyPlan) urls.push(imagesContainer.societyPlan);
+  if (Array.isArray(imagesContainer.gallery)) urls.push(...imagesContainer.gallery.filter(img => typeof img === 'string'));
+
+  const addPlanUrls = (configObj) => {
+    if (!configObj || typeof configObj !== 'object') return;
+    Object.values(configObj).forEach((value) => {
+      if (Array.isArray(value)) {
+        value.forEach((variant) => { if (variant?.planImage) urls.push(variant.planImage); });
+      } else if (value && typeof value === 'object') {
+        Object.values(value).forEach((variants) => {
+          if (Array.isArray(variants)) {
+            variants.forEach((variant) => { if (variant?.planImage) urls.push(variant.planImage); });
+          }
+        });
+      }
+    });
+  };
+
+  addPlanUrls(property.residentialDetails?.config);
+  addPlanUrls(property.commercialDetails?.config);
+  addPlanUrls(property.plotDetails?.config);
+
+  return [...new Set(urls)];
+};
 
 
 
@@ -40,6 +97,7 @@ exports.addProperty = async (req, res) => {
       specification: parseData(body.specification),
       amenities: parseData(body.amenities),
       nearbyLocalities: parseData(body.localities),
+      questions: parseData(body.questions),
       propertyType: body.propertyType,
       
       price: {
@@ -49,12 +107,9 @@ exports.addProperty = async (req, res) => {
       
       images: {
         // --- Images Assignment in Controller ---
-images: {
-  // Jar file asel tar file cha path, nahi tar body madhli URL, nahi tar empty string
-  coverImage: getFile('coverImage')?.path || body.coverImage || "", 
-  gallery: getFiles('gallery').length > 0 ? getFiles('gallery') : (parseData(body.gallery) || []),
-  societyPlan: getFile('societyPlan')?.path || body.societyPlan || "",
-},
+        coverImage: getFile('coverImage')?.path || body.coverImage || "", 
+        gallery: getFiles('gallery').length > 0 ? getFiles('gallery') : (parseData(body.gallery) || []),
+        societyPlan: getFile('societyPlan')?.path || body.societyPlan || "",
       },
       builder: req.admin?._id,
       // Status formatting
@@ -169,8 +224,7 @@ exports.getPropertyById = async (req, res) => {
       return res.status(400).json({ success: false, message: "Property ID is required" });
     }
 
-    const property = await Property.findById(id).populate("builder", "name email mobile");
-
+    const property = await Property.findById(id).populate('builder');
     if (!property) {
       return res.status(404).json({ success: false, message: "Property not found" });
     }
@@ -284,6 +338,7 @@ exports.updateProperty = async (req, res) => {
       amenities: parseData(body.amenities) || oldProperty.amenities,
       facilities: parseData(body.facilities) || oldProperty.facilities, // Navin Field
       nearbyLocalities: parseData(body.localities) || oldProperty.nearbyLocalities,
+      questions: parseData(body.questions) || oldProperty.questions,
       
       propertyType: body.propertyType || oldProperty.propertyType,
       price: {
@@ -385,12 +440,84 @@ exports.updateProperty = async (req, res) => {
 exports.deleteProperty = async (req, res) => {
     try {
         const { id } = req.params;
-        const property = await Property.findByIdAndDelete(id);
 
-        if (!property) return res.status(404).json({ message: "Property not found" });
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, message: "Invalid Property ID" });
+        }
 
-        res.status(200).json({ success: true, message: "Property deleted successfully" });
+        const property = await Property.findById(id);
+        if (!property) {
+            return res.status(404).json({ success: false, message: "Property not found" });
+        }
+
+        // 1. Sarv Images gola kara
+        const urls = collectPropertyMediaUrls(property);
+        
+        // 2. Pahile sarv individual files delete kara (Garjeche aahe)
+        if (urls.length > 0) {
+            await Promise.allSettled(urls.map((url) => deleteCloudinaryResource(url)));
+            console.log("All individual images deleted from Cloudinary");
+        }
+
+        // 3. Aata to Specific Property Folder delete kara
+        // Multer madhlya logic pramane title clean kara
+        if (property.title) {
+            const propertyTitle = property.title
+                .replace(/[^\w\s]/gi, '')
+                .replace(/\s+/g, '_');
+            
+            const folderPath = `aaplghar/properties/${propertyTitle}`;
+
+            try {
+                // Cloudinary API vaprun folder delete karne
+                await cloudinary.api.delete_folder(folderPath);
+                console.log(`Folder deleted: ${folderPath}`);
+            } catch (folderErr) {
+                // Jar folder madhe ajun kahi files astil tar error yeu shakto, to catch kara
+                console.warn("Folder delete error (May not be empty):", folderErr.message);
+            }
+        }
+
+        // 4. Database madhun delete kara
+        await Property.findByIdAndDelete(id);
+
+        res.status(200).json({ success: true, message: "Property and its folder deleted successfully" });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error("DELETE ERROR:", error);
+        res.status(500).json({ success: false, message: "Error: " + error.message });
+    }
+};
+
+// Get Properties by City (Dedicated Controller)
+exports.getPropertiesByCity = async (req, res) => {
+    try {
+        const { city } = req.query; // URL madhun city ghyaychi (?city=Nashik)
+
+        if (!city) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "City name is required in query parameters" 
+            });
+        }
+
+        // Location object madhli city filter karne
+        // $regex: 'i' mule capital/small letter cha farak padnar nahi
+        const properties = await Property.find({
+            "location.city": { $regex: new RegExp(city, 'i') }
+        }).populate("builder", "name email mobile companyName");
+
+        res.status(200).json({
+            success: true,
+            count: properties.length,
+            city: city,
+            data: properties
+        });
+
+    } catch (error) {
+        console.error("CITY FILTER ERROR:", error);
+        res.status(500).json({ 
+            success: false, 
+            message: "Server Error: " + error.message 
+        });
     }
 };

@@ -13,6 +13,7 @@ import PropertyShow from './Pages/propertyShow.jsx'
 import YourProperties from './Pages/yourProperty.jsx'
 import UpdateProperty from './Pages/updateProperty.jsx'
 import UserProfile from './Pages/userProfile.jsx'
+import BuilderDetails from './Pages/builderDetails.jsx'
 
 function App() {
   
@@ -33,6 +34,7 @@ function App() {
         <Route path="/my-properties" element={<YourProperties />} />
         <Route path="/update-property/:id" element={<UpdateProperty />} />
         <Route path="/profile" element={<UserProfile />} />
+        <Route path="/builder-info/:id" element={<BuilderDetails />} />
         
        
 

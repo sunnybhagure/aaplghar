@@ -91,6 +91,50 @@ const MultiInput = ({ label, placeholder, value = [], onChange }) => {
   );
 };
 
+// --- QUESTIONS & ANSWERS INPUT ---
+const QuestionsInput = ({ label, value = [], onChange }) => {
+  const [q, setQ] = useState("");
+  const [a, setA] = useState("");
+
+  const addQA = () => {
+    if (q.trim() && a.trim()) {
+      onChange([...value, { question: q.trim(), answer: a.trim() }]);
+      setQ("");
+      setA("");
+    }
+  };
+
+  return (
+    <div className="space-y-2 flex-1">
+      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">{label}</label>
+      <div className="space-y-2">
+        <div className="flex gap-2">
+          <input 
+            type="text" value={q} onChange={(e) => setQ(e.target.value)}
+            placeholder="Property Question (e.g. Is it RERA approved?)" 
+            className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 transition-all"
+          />
+          <button type="button" onClick={addQA} className="bg-blue-600 text-white px-6 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-900 transition-all">Add QA</button>
+        </div>
+        <textarea 
+          value={a} onChange={(e) => setA(e.target.value)}
+          placeholder="Detailed Answer..." 
+          className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 transition-all h-20"
+        />
+      </div>
+      <div className="space-y-2 mt-3">
+        {value.map((item, index) => (
+          <div key={index} className="bg-slate-50 p-3 rounded-xl border border-slate-200 relative group">
+            <p className="text-xs font-black text-blue-700 uppercase mb-1">Q: {item.question}</p>
+            <p className="text-sm text-slate-600">A: {item.answer}</p>
+            <button type="button" onClick={() => onChange(value.filter((_, i) => i !== index))} className="absolute top-2 right-2 text-slate-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export default function PropertyForm() {
   const [step, setStep] = useState(1);
   const navigate = useNavigate();
@@ -106,6 +150,8 @@ export default function PropertyForm() {
   const [localitiesList, setLocalitiesList] = useState([]);
   const [highlightsList, setHighlightsList] = useState([]);
   const [facilitiesList, setFacilitiesList] = useState([]);
+  // PropertyForm function chya aat, itar state sobat add kara
+const [questionsList, setQuestionsList] = useState([]);
 
   const next = () => setStep(step + 1);
   const back = () => setStep(step - 1);
@@ -149,6 +195,7 @@ export default function PropertyForm() {
       formData.append("localities", JSON.stringify(localitiesList));
       formData.append("highlights", JSON.stringify(highlightsList));
       formData.append("facilities", JSON.stringify(facilitiesList));
+      formData.append("questions", JSON.stringify(questionsList));
       formData.append("resSubTypes", JSON.stringify(resSubTypes));
       formData.append("commSubTypes", JSON.stringify(commSubTypes));
       formData.append("plotSubTypes", JSON.stringify(plotSubTypes));
@@ -246,6 +293,9 @@ export default function PropertyForm() {
                   <label className="text-xs font-bold text-slate-500 uppercase ml-1">Description</label>
                   <textarea {...register("description")} placeholder="Describe property highlights..." className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none h-24 transition-all" />
                 </div>
+
+                {/* Navin Questions Section */}
+                <QuestionsInput label="Property Q&A (Builder FAQ)" value={questionsList} onChange={setQuestionsList} />
 
                 {/* RESIDENTIAL CONFIG (NO LOGIC CHANGE) */}
                 {currentPropertyType === "residential" && (

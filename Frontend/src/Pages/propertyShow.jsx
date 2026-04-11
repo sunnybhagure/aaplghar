@@ -4,8 +4,17 @@ import axios from "axios";
 import { 
   MapPin, IndianRupee, Calendar, User, CheckCircle2, 
   Loader2, ChevronDown, ChevronUp, X, Building2,
-  Trash2, Edit3, Phone, Clock, Layers
+  Trash2, Edit3, Phone, Clock, Layers ,Star, Send
 } from "lucide-react";
+
+
+import PropertyMap from "../Components/PropertyMap";
+import PropertyAverageRating from "../Components/PropertyAverageRating";
+
+import BuilderAverageRating from '../Components/BuilderAverageRating';
+import BuilderCitiesCount from '../Components/BuilderCitiesCount';
+import BuilderProjectCount from '../Components/BuilderProjectCount';
+import TopRatedInCity from "../Components/TopRatedInCity";
 
 // --- Read More Wrapper ---
 const ReadMoreWrapper = ({ children, maxHeight = 150 }) => {
@@ -57,6 +66,23 @@ export default function PropertyShow() {
   });
   const [bookingLoading, setBookingLoading] = useState(false);
 
+  const [currentUser, setCurrentUser] = useState(null);
+
+  const [builderFullData, setBuilderFullData] = useState(null);
+  
+
+  const baseURL = "http://localhost:5000";
+
+  // User details localstorage madhun kadhun state madhe bhara
+  useEffect(() => {
+    const userDataRaw = localStorage.getItem("user");
+    if (userDataRaw) {
+      try {
+        setCurrentUser(JSON.parse(userDataRaw));
+      } catch (e) { console.error(e); }
+    }
+  }, []);
+
   const isAdminOwner = useMemo(() => {
     if (!property) return false;
     const getLoggedInId = () => {
@@ -76,20 +102,30 @@ export default function PropertyShow() {
     return currentAdminId && propertyOwnerId && String(currentAdminId).trim() === String(propertyOwnerId).trim();
   }, [property]);
 
-  useEffect(() => {
-    const fetchDetails = async () => {
-      try {
-        const res = await axios.get(`http://localhost:5000/api/property/getProperty/${id}`);
-        const data = res.data.data || res.data;
-        setProperty(data);
-        setActiveImg(data.images?.coverImage);
-        setLoading(false);
-      } catch (err) {
-        setLoading(false);
+useEffect(() => {
+  const fetchDetails = async () => {
+    try {
+      const res = await axios.get(`http://localhost:5000/api/property/getProperty/${id}`);
+      const data = res.data.data || res.data;
+      setProperty(data);
+      setActiveImg(data.images?.coverImage || data.images?.images?.coverImage || "");
+
+      // BUILDER DATA FETCH LOGIC
+      // Jar builder chi fakt ID yet asel tar full data fetch kara
+      const builderId = data.builder?._id || data.builder;
+      if (builderId) {
+        const builderRes = await axios.get(`http://localhost:5000/api/builder/getBuilder/${builderId}`);
+        setBuilderFullData(builderRes.data.data || builderRes.data);
       }
-    };
-    fetchDetails();
-  }, [id]);
+
+      setLoading(false);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  };
+  fetchDetails();
+}, [id]);
 
   // Extract Variants for Dropdown
   const variantOptions = useMemo(() => {
@@ -153,7 +189,7 @@ const handleAppointmentSubmit = async (e) => {
   } finally {
     setBookingLoading(false);
   }
-};
+  };
 
   const formatPrice = (num) => {
     const val = Number(num);
@@ -216,7 +252,8 @@ const handleAppointmentSubmit = async (e) => {
   if (loading) return <div className="h-screen flex items-center justify-center bg-white"><Loader2 className="w-8 h-8 text-blue-600 animate-spin" /></div>;
   if (!property) return <div className="p-20 text-center font-bold uppercase tracking-widest text-slate-400">Property Not Found</div>;
 
-  const allMedia = [...new Set([...(property.images?.gallery || []), property.images?.societyPlan])].filter(img => img && typeof img === 'string');
+  const imagesData = property.images?.images || property.images || {};
+  const allMedia = [...new Set([...(imagesData.gallery || []), imagesData.societyPlan])].filter(img => img && typeof img === 'string');
 
   return (
     <div className="min-h-screen bg-[#f8fafc] pb-20 text-slate-900">
@@ -225,7 +262,19 @@ const handleAppointmentSubmit = async (e) => {
         <div className="bg-white border-b border-slate-200 sticky top-0 z-50">
           <div className="max-w-6xl mx-auto px-4 py-3 flex gap-3 justify-end">
             <button onClick={() => navigate(`/update-property/${property._id}`)} className="flex items-center gap-2 bg-slate-900 text-white px-5 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 transition-all"><Edit3 className="w-3.5 h-3.5" /> Update Property</button>
-            <button onClick={async () => { if(window.confirm("Delete?")) { await axios.delete(`http://localhost:5000/api/property/delete/${id}`); navigate("/your-properties"); }}} className="flex items-center gap-2 bg-rose-600 text-white px-5 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg shadow-rose-100"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
+            <button onClick={async () => { 
+              if(window.confirm("Delete?")) { 
+                try {
+                  const token = localStorage.getItem("adminToken"); 
+                  if (!token) { alert("Admin token not found. Please login again."); return; }
+                  await axios.delete(`http://localhost:5000/api/property/delete/${id}`, { headers: { "Authorization": `Bearer ${token}` } }); 
+                  alert("Property deleted successfully");
+                  navigate("/my-properties"); 
+                } catch (err) {
+                  alert("Failed to delete property: " + (err.response?.data?.message || err.message));
+                }
+              }
+            }} className="flex items-center gap-2 bg-rose-600 text-white px-5 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg shadow-rose-100"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
           </div>
         </div>
       )}
@@ -237,6 +286,7 @@ const handleAppointmentSubmit = async (e) => {
             <User className="w-3.5 h-3.5" /> {property.builder?.name || "Aaple Ghar Partner"} | <Calendar className="w-3.5 h-3.5" /> {new Date(property.createdAt).toLocaleDateString()}
           </div>
           <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight leading-none">{property.title}</h1>
+          
           <div className="flex items-center gap-2 mt-1">
             <MapPin className="w-3.5 h-3.5 text-rose-500" />
             <span className="font-bold text-[13px] text-slate-500">{property.location?.area}, {property.location?.city}</span>
@@ -244,6 +294,8 @@ const handleAppointmentSubmit = async (e) => {
         </div>
         <div className="mt-6 md:mt-0 flex items-end gap-8">
           <div className="text-right">
+            <PropertyAverageRating propertyId={id} />
+
              <p className={`text-[12px] font-black uppercase tracking-widest ${property.status === 'ready' ? 'text-emerald-500' : 'text-orange-500'}`}>{property.status?.replace('_', ' ')}</p>
              {property.status !== 'ready' && property.possessionDate && <p className="text-[10px] font-black text-blue-600 uppercase mt-0.5">Possession-Date: {property.possessionDate}</p>}
           </div>
@@ -443,6 +495,183 @@ const handleAppointmentSubmit = async (e) => {
               ))}
             </div>
           </section>
+
+          {/* MAP SECTION START */}
+          <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm mt-6">
+            <div className="flex flex-col mb-5">
+              <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-[2px]">Location Context</h4>
+              <p className="text-[10px] font-bold text-blue-600 uppercase mt-0.5 tracking-tight">Interactive Map View</p>
+            </div>
+
+            <PropertyMap 
+              area={property.location?.area} 
+              city={property.location?.city} 
+            />
+
+            <div className="mt-5 flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <div className="p-2 bg-white rounded-lg shadow-sm">
+                <MapPin className="w-4 h-4 text-rose-500" />
+              </div>
+              <div>
+                <p className="text-[13px] font-black text-slate-800 leading-none">{property.location?.area}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{property.location?.city}, India</p>
+              </div>
+            </div>
+          </section>
+          {/* MAP SECTION END */}
+
+          {/* --- NAVIN REVIEW SYSTEM ITHE TAKA --- */}
+          <div className="mt-10 border-t border-slate-100 pt-10">
+            <div className="flex flex-col mb-6">
+              <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-[2px]">Property Reviews</h4>
+              <p className="text-[10px] font-bold text-blue-600 uppercase mt-0.5 tracking-tight">Real experiences from users</p>
+            </div>
+
+            <ReviewSection 
+              propertyId={id} 
+              currentUser={currentUser} 
+            />
+          </div>
+          {/* --- REVIEW SYSTEM END --- */}
+          {/* --- BUILDER DETAILS SECTION START --- */}
+          {property.builder && (
+            <div className="mt-10 border-t border-slate-100 pt-10 mb-20">
+              <div className="flex flex-col mb-6">
+                <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-[2px]">Developer Information</h4>
+                <p className="text-[10px] font-bold text-blue-600 uppercase mt-0.5 tracking-tight">The Visionaries Behind This Project</p>
+              </div>
+
+              {/* Same BuilderProfileCard cha UI pan width full sathi customize kela aahe */}
+              <div 
+                onClick={() => navigate(`/builder-info/${property.builder._id}`)}
+                className="w-full min-h-[280px] bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden flex flex-col group relative"
+              >
+                <div className="flex flex-col md:flex-row p-5 gap-6">
+                  {/* Cover Image */}
+                  <div className="w-full md:w-32 h-32 flex-shrink-0 bg-slate-50 rounded-xl overflow-hidden border border-slate-100 p-1">
+                    <img 
+                      src={property.builder.coverImage || 'https://via.placeholder.com/150'} 
+                      alt={property.builder.companyName}
+                      className="w-full h-full object-contain mix-blend-multiply transition-transform duration-500 group-hover:scale-110"
+                    />
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 flex flex-col justify-center">
+                    <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter leading-tight">
+                      {property.builder.companyName || "Premier Developers"}
+                    </h3>
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                      ESTD. {property.builder.since || "N/A"}
+                    </p>
+                    
+                    <div className="flex gap-6 mt-4">
+                      <div>
+                        <p className="text-lg font-black text-blue-600 leading-none">
+                          {new Date().getFullYear() - parseInt(property.builder.since || new Date().getFullYear())}+
+                        </p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Exp. Yrs</p>
+                      </div>
+                      <div className="w-[1px] h-8 bg-slate-100"></div>
+                      <div>
+                        <p className="text-lg font-black text-emerald-600 leading-none">
+                          {/* Yethil static value kadhun ha component taka */}
+                          <BuilderProjectCount builderId={property.builder._id} />
+                        </p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Projects</p>
+                      </div>
+                      <div className="w-[1px] h-8 bg-slate-100"></div>
+                      <div>
+                        <p className="text-lg font-black text-orange-600 leading-none">
+                          <BuilderCitiesCount builderId={property.builder._id} />
+                        </p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Cities</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="px-5 pb-5 flex-1 overflow-hidden">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[1px] mb-1">About Builder</p>
+            
+                  {/* Scrollable Container */}
+                  <div className="h-[80px] overflow-y-auto pr-2 custom-builder-scroll text-sm text-slate-600 leading-relaxed font-medium italic">
+                    {property.builder.about || "This builder is one of the leading real estate developers in the region."}
+                  </div>
+
+                  {/* Inline CSS for Custom Scrollbar (fakt ya section sathi) */}
+                  <style dangerouslySetInnerHTML={{ __html: `
+                    .custom-builder-scroll::-webkit-scrollbar {
+                      width: 4px;
+                    }
+                    .custom-builder-scroll::-webkit-scrollbar-track {
+                      background: #f1f5f9;
+                      border-radius: 10px;
+                    }
+                    .custom-builder-scroll::-webkit-scrollbar-thumb {
+                      background: #cbd5e1;
+                      border-radius: 10px;
+                    }
+                    .custom-builder-scroll::-webkit-scrollbar-thumb:hover {
+                      background: #94a3b8;
+                    }
+                  `}} />
+                </div>
+
+                <div className="px-5 py-4 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between">
+                  <BuilderAverageRating builderId={property.builder._id} />
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/builder-projects/${property.builder._id}`);
+                    }}
+                    className="bg-slate-900 hover:bg-blue-600 text-white text-[10px] font-black py-2.5 px-5 rounded-full transition-all shadow-lg active:scale-95 uppercase tracking-widest"
+                  >
+                    View All Projects
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {/* --- BUILDER DETAILS SECTION END --- */}
+          {/* --- FAQ SECTION START --- */}
+          <div className="mt-10 mb-20 space-y-10">
+            
+            {/* 1. Property Specific FAQs */}
+            {property.questions && property.questions.length > 0 && (
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <div className="mb-6">
+                  <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-[2px]">Project Queries</h4>
+                  <p className="text-[10px] font-bold text-blue-600 uppercase mt-0.5 tracking-tight">Everything you need to know about this project</p>
+                </div>
+                
+                <div className="divide-y divide-slate-50">
+                  {property.questions.map((faq, index) => (
+                    <FAQItem key={index} index={index} question={faq.question} answer={faq.answer} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 2. Builder Specific FAQs (Red color removed) */}
+            {(property.builder?.faqs || property.builder?.faqs?.length > 0) && (
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <div className="mb-6">
+                  <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-[2px]">Developer Insights</h4>
+                  {/* Hithla color change kela aahe (Blue-Slate mix) */}
+                  <p className="text-[10px] font-bold text-slate-500 uppercase mt-0.5 tracking-tight">Trust & Legacy of {property.builder.companyName}</p>
+                </div>
+                
+                <div className="divide-y divide-slate-50">
+                  {property.builder.faqs.map((faq, index) => (
+                    <FAQItem key={index} index={index} question={faq.question} answer={faq.answer} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+          </div>
+          {/* --- FAQ SECTION END --- */}
         </div>
 
         {/* Sidebar */}
@@ -451,7 +680,7 @@ const handleAppointmentSubmit = async (e) => {
             <div>
                 <h5 className="text-[10px] font-black uppercase tracking-[3px] mb-6 opacity-40 italic">Inquiry Center</h5>
                 <div className="space-y-3.5">
-                <button onClick={() => setShowAppointmentModal(true)} className="w-full bg-blue-600 py-4 rounded-xl font-black uppercase text-[11px] tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-900/40">Schedule Call</button>
+                <button onClick={() => setShowAppointmentModal(true)} className="w-full bg-blue-600 py-4 rounded-xl font-black uppercase text-[11px] tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-900/40">Schedule Appointment</button>
                 <button className="w-full bg-white/10 py-4 rounded-xl font-black uppercase text-[11px] tracking-widest border border-white/5 hover:bg-white/20 transition-all">Download Brochure</button>
                 </div>
             </div>
@@ -464,6 +693,15 @@ const handleAppointmentSubmit = async (e) => {
             </div>
           </div>
         </div>
+        {/* Grid chya baher - Full Width Recommendation Section */}
+      <div className="max-w-6xl mx-auto px-4 mt-20">
+        {property.location?.city && (
+          <TopRatedInCity 
+            city={property.location.city} 
+            currentPropertyId={id} 
+          />
+        )}
+      </div>
       </div>
 
       {/* Gallery Modal */}
@@ -614,3 +852,177 @@ const handleAppointmentSubmit = async (e) => {
     </div>
   );
 }
+
+const FAQItem = ({ question, answer, index }) => { // <--- index prop add kela
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="border-b border-slate-100 last:border-0">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full py-4 flex items-start justify-between text-left group transition-all"
+      >
+        <div className="flex gap-3">
+          {/* Question Number Icon */}
+          <span className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-md bg-slate-100 text-[10px] font-black text-slate-500 mt-0.5 group-hover:bg-blue-600 group-hover:text-white transition-all">
+            {index + 1}
+          </span>
+          <span className="text-sm font-bold text-slate-700 group-hover:text-blue-600 transition-colors">
+            {question}
+          </span>
+        </div>
+        
+        {isOpen ? (
+          <ChevronUp className="w-4 h-4 text-blue-600 mt-1" />
+        ) : (
+          <ChevronDown className="w-4 h-4 text-slate-400 mt-1" />
+        )}
+      </button>
+      
+      {isOpen && (
+        <div className="pb-5 pl-8 text-sm text-slate-500 leading-relaxed animate-in fade-in slide-in-from-top-1 duration-300">
+          <div className="bg-slate-50/50 p-3 rounded-xl border-l-2 border-blue-600">
+            {answer}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+// PropertyShow function chya baher (File chya shevti)
+const ReviewSection = ({ propertyId, currentUser }) => {
+  const [reviews, setReviews] = useState([]);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+  const [showAll, setShowAll] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const fetchReviews = async () => {
+    try {
+      const res = await axios.get(`http://localhost:5000/api/reviews/property/${propertyId}`);
+      if (res.data.success) setReviews(res.data.data);
+    } catch (err) { console.error("Error fetching reviews", err); }
+  };
+
+  useEffect(() => { fetchReviews(); }, [propertyId]);
+
+  const handleSubmit = async () => {
+    if (!currentUser) return alert("Review denyasathi login kara!");
+    if (!comment.trim()) return alert("Kahi tari message liha!");
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post("http://localhost:5000/api/reviews/add", {
+        property: propertyId,
+        user: currentUser._id || currentUser.id,
+        userName: currentUser.name || "Anonymous",
+        rating,
+        comment
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      setComment("");
+      setRating(5);
+      fetchReviews(); // Refresh list
+    } catch (err) {
+      alert("Error adding review");
+    } finally { setLoading(false); }
+  };
+
+  const deleteReview = async (id) => {
+    if (window.confirm("Review delete karaycha aahe?")) {
+      try {
+        const token = localStorage.getItem("token");
+        await axios.delete(`http://localhost:5000/api/reviews/delete/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        fetchReviews();
+      } catch (err) { alert("Error deleting review"); }
+    }
+  };
+
+  const visibleReviews = showAll ? reviews : reviews.slice(0, 4);
+
+  return (
+    <div className="space-y-8">
+      {/* Input Box: Star Left, Text Right */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row gap-8">
+        <div className="flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-slate-100 pb-4 md:pb-0 md:pr-8">
+          <span className="text-[10px] font-black uppercase text-slate-400 mb-2">Rating</span>
+          <div className="flex gap-1">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star 
+                key={star} 
+                onClick={() => setRating(star)}
+                className={`w-6 h-6 cursor-pointer transition-all ${rating >= star ? "fill-yellow-400 text-yellow-400" : "text-slate-200"}`} 
+              />
+            ))}
+          </div>
+          <span className="text-2xl font-black mt-2 text-slate-800">{rating}.0</span>
+        </div>
+
+        <div className="flex-1 relative">
+          <textarea 
+            className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+            placeholder="Property baddal tumche mat liha..."
+            rows="3"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+          />
+          <button 
+            disabled={loading}
+            onClick={handleSubmit}
+            className="absolute bottom-4 right-4 bg-slate-900 text-white p-2.5 rounded-lg hover:bg-blue-600 transition-all disabled:bg-slate-300"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Reviews Grid: 2 per row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {visibleReviews.map((rev) => (
+          <div key={rev._id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative group hover:border-blue-100 transition-all">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold uppercase text-xs">
+                {rev.userName.substring(0, 2)}
+              </div>
+              <div>
+                <p className="text-[12px] font-black uppercase text-slate-800">{rev.userName}</p>
+                <div className="flex gap-0.5 mt-0.5">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className={`w-2.5 h-2.5 ${i < rev.rating ? "fill-yellow-400 text-yellow-400" : "text-slate-200"}`} />
+                  ))}
+                </div>
+              </div>
+              {/* Delete button jar user login asel tar */}
+              {(currentUser?._id === rev.user || currentUser?.id === rev.user) && (
+                <button 
+                  onClick={() => deleteReview(rev._id)}
+                  className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 text-rose-500 p-1 hover:bg-rose-50 rounded-md transition-all"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            <p className="text-[13px] text-slate-500 font-medium leading-relaxed italic">"{rev.comment}"</p>
+          </div>
+        ))}
+      </div>
+
+      {reviews.length > 4 && (
+        <button 
+          onClick={() => setShowAll(!showAll)}
+          className="mx-auto block text-[10px] font-black uppercase tracking-widest text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-full transition-all"
+        >
+          {showAll ? "Show Less -" : `Show All (${reviews.length}) +`}
+        </button>
+      )}
+    </div>
+  );
+};

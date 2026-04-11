@@ -1,4 +1,5 @@
 const Appointment = require('../models/appointment');
+const mongoose = require('mongoose'); // वरती इम्पोर्ट कर
 
 exports.bookAppointment = async (req, res) => {
     try {
@@ -32,23 +33,32 @@ exports.bookAppointment = async (req, res) => {
 };
 
 // 1. User Side: स्वतःच्या सर्व अपॉइंटमेंट पाहण्यासाठी (Add this!)
+
+
 exports.getUserAppointments = async (req, res) => {
     try {
-        const appointments = await Appointment.find({ user: req.params.userId })
+        const { userId } = req.params;
+        console.log("Fetching appointments for User ID:", userId);
+
+        // find() मध्ये डायरेक्ट userId वापरा
+        const appointments = await Appointment.find({ user: userId })
             .populate({
                 path: 'property',
-                select: 'title location images' // property कडून काय हवे ते निवडा
+                select: 'title location images' 
             })
             .populate({
                 path: 'builder',
-                select: 'companyName email phone' // builder कडून काय हवे ते निवडा
+                select: 'companyName email phone'
             })
-            .sort({ date: 1, timeSlot: 1 }); // Sort by date and time ascending (upcoming first)
+            .sort({ createdAt: -1 });
 
-        res.json(appointments);
+        console.log("Database response length:", appointments.length);
+        
+        // जर डेटा सापडला तर तो पाठवा, रिकामा असला तरी रिकामी array पाठवा
+        res.status(200).json(appointments);
     } catch (error) {
-        console.error("Error fetching user appointments:", error);
-        res.status(500).json({ message: "Error fetching appointments" });
+        console.error("Error in getUserAppointments:", error);
+        res.status(500).json({ message: "Error fetching appointments", error: error.message });
     }
 };
 

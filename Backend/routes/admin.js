@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 
 const upload = require("../middleware/multer");
 
-const { register, login, updateAdminProfile, changePassword, verifyPassword, getAdminProfile, uploadCoverImage } = require("../Controller/AdminController");
+const { register, login, updateAdminProfile, changePassword, verifyPassword, getAdminProfile, uploadCoverImage , getAllBuilders, getBuilderDetails} = require("../Controller/AdminController");
 
 // Admin Registration
 router.post("/register", register);
@@ -21,5 +21,9 @@ router.post("/upload-cover-image", upload.single("file"), uploadCoverImage);
 router.post("/change-password", changePassword);
 // Verify Password
 router.post("/verify-password", verifyPassword);
+
+router.get("/builders", getAllBuilders);
+
+router.get("/builder-details/:id", getBuilderDetails);
 
 module.exports = router;

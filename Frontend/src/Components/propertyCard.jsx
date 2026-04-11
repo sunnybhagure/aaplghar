@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom"; 
 import { MapPin, IndianRupee, Navigation2, Calendar, User, Maximize2, ChevronRight, ChevronLeft } from "lucide-react";
+import PropertyAverageRating from './PropertyAverageRating';
 
 export const PropertyCard = ({ property }) => {
   const navigate = useNavigate();
@@ -219,6 +220,7 @@ export const PropertyCard = ({ property }) => {
                 <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400"><Calendar className="w-3 h-3" /> {new Date(property.createdAt).toLocaleDateString('en-GB')}</div>
                 <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400"><User className="w-3 h-3" /> {property.builder?.name || property.builderName || "Official Builder"}</div>
              </div>
+             <PropertyAverageRating propertyId={property._id} />
              <div className="flex items-center gap-1 text-[8px] font-black text-blue-600 uppercase tracking-tighter bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
                 {property.possessionDate ? <><Calendar className="w-3 h-3" /> POSS: {property.possessionDate}</> : <><Maximize2 className="w-3 h-3" /> AREA: {property.projectArea || "N/A"}</>}
              </div>

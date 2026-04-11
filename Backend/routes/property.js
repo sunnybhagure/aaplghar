@@ -4,7 +4,7 @@ const router = express.Router();
 const mongoose = require('mongoose');
 
 const upload = require("../middleware/multer");
-const { addProperty ,getAllProperties , getPropertyById, getPropertiesByBuilder, updateProperty, deleteProperty } = require("../Controller/propertyController");
+const { addProperty ,getAllProperties , getPropertyById, getPropertiesByBuilder, updateProperty, deleteProperty , getPropertiesByCity } = require("../Controller/propertyController");
 const { protectAdmin } = require("../middleware/Adminauth");
 
 // 👉 Only admin / builder allowed
@@ -26,6 +26,9 @@ router.get('/builder/:builderId', getPropertiesByBuilder);
 router.put('/update/:id',   upload.any(), updateProperty);
 
 // Delete karne
-router.delete('/delete/:id', deleteProperty);
+router.delete('/delete/:id', protectAdmin, deleteProperty);
+
+// City pramane properties fetch karne
+router.get('/filterByCity', getPropertiesByCity);
 
 module.exports = router;
