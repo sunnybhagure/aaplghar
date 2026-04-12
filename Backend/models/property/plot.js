@@ -9,3 +9,5 @@ const plotSchema = new mongoose.Schema({
 });
 
 module.exports = plotSchema;
+
+
