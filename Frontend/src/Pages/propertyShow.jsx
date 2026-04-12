@@ -15,6 +15,7 @@ import BuilderAverageRating from '../Components/BuilderAverageRating';
 import BuilderCitiesCount from '../Components/BuilderCitiesCount';
 import BuilderProjectCount from '../Components/BuilderProjectCount';
 import TopRatedInCity from "../Components/TopRatedInCity";
+import TopBuildersInCity from "../Components/TopBuildersInCity";
 
 // --- Read More Wrapper ---
 const ReadMoreWrapper = ({ children, maxHeight = 150 }) => {
@@ -693,15 +694,8 @@ const handleAppointmentSubmit = async (e) => {
             </div>
           </div>
         </div>
-        {/* Grid chya baher - Full Width Recommendation Section */}
-      <div className="max-w-6xl mx-auto px-4 mt-20">
-        {property.location?.city && (
-          <TopRatedInCity 
-            city={property.location.city} 
-            currentPropertyId={id} 
-          />
-        )}
-      </div>
+        {/* --- RECOMMENDATION SECTION (MATCHED TO HEADER WIDTH) --- */}
+      
       </div>
 
       {/* Gallery Modal */}
@@ -849,6 +843,36 @@ const handleAppointmentSubmit = async (e) => {
           </div>
         </div>
       )}
+      <div className="w-full mt-24 border-t border-slate-100">
+        <div className="max-w-6xl mx-auto px-4">
+          
+          {/* 1. TOP RATED RESIDENTIAL - Forced Full Width Row */}
+          <div className="w-full mb-10">
+            {property.location?.city && (
+              <div className="w-full">
+                <TopRatedInCity 
+                  city={property.location.city} 
+                  currentPropertyId={property._id} 
+                  propertyType={property.propertyType} 
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Clean Divider like your header border */}
+          <div className="h-[1px] w-full bg-slate-100 mb-10"></div>
+
+          {/* 2. TOP RATED BUILDERS - Forced Full Width Row */}
+          <div className="w-full">
+            {property.location?.city && (
+              <div className="w-full">
+                <TopBuildersInCity city={property.location.city} />
+              </div>
+            )}
+          </div>
+
+        </div>
+      </div>
     </div>
   );
 }

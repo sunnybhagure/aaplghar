@@ -521,3 +521,41 @@ exports.getPropertiesByCity = async (req, res) => {
         });
     }
 };
+
+exports.getBuildersByCity = async (req, res) => {
+    try {
+        const { city } = req.query;
+
+        if (!city) {
+            return res.status(400).json({ success: false, message: "City name required" });
+        }
+
+        // 1. City nusar properties find kara ani builder populate kara
+        const properties = await Property.find({
+            "location.city": { $regex: new RegExp(city, 'i') }
+        }).populate("builder");
+
+        // 2. Map vaprun unique builders kadha (JS logic ne)
+        const buildersMap = new Map();
+
+        properties.forEach(prop => {
+            if (prop.builder && prop.builder._id) {
+                // Key mhanun ID vaparlyamule duplicate builders remove hotil
+                buildersMap.set(prop.builder._id.toString(), prop.builder);
+            }
+        });
+
+        // Map la array madhe convert kara
+        const uniqueBuilders = Array.from(buildersMap.values());
+
+        res.status(200).json({
+            success: true,
+            count: uniqueBuilders.length,
+            data: uniqueBuilders
+        });
+
+    } catch (error) {
+        console.error("BUILDER ERROR:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

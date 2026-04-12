@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronRight, Loader2, Sparkles, Check
 } from "lucide-react";
 
-import { PropertyCard } from "../Components/propertyCard"; 
+import { PropertyCard } from "../Components/PropertyCard"; 
 import BuilderProfileCard from "../Components/builderProfileCard";
 
 const PropertySlider = ({ children, isEmpty }) => {
@@ -55,6 +55,8 @@ export default function HomePage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const [builders, setBuilders] = useState([]);
+
+  const [propertiesWithRatings, setPropertiesWithRatings] = useState([]);
 
   const cities = ["All Cities", "Mumbai", "Pune", "Bangalore", "Noida", "Gurgaon", "Hyderabad", "Delhi", "Chennai", "Kolkata", "Ahmedabad", "Nashik", "Nagpur", "Thane", "PCMC", "Other"];
 
@@ -127,54 +129,53 @@ export default function HomePage() {
     setIsSearchActive(false); // आता फिल्टर रिझल्ट दिसणार
   };
 
-  const filteredProperties = useMemo(() => {
-    return properties.filter(p => {
-      if (p.propertyType !== activeTab) return false;
+// 1. Filtered Properties Logic (Ha block replace kar)
+// 1. filteredProperties (Filter kelyavar yenara data)
+const filteredProperties = useMemo(() => {
+  let baseProperties = properties.filter(p => p.propertyType === activeTab);
 
-      // १. जर युजरने सर्च बार मधून Explore केलं असेल तर:
-      if (isSearchActive && appliedSearch !== "") {
-        const content = `${p.title} ${p.location?.city} ${p.location?.area} ${p.builder?.name}`.toLowerCase();
-        return content.includes(appliedSearch.toLowerCase());
-      }
+  const isAnyFilterActive = 
+    isSearchActive || 
+    selectedCity !== "All Cities" || 
+    selectedBudget !== "All Budgets" || 
+    selectedBHK !== "All BHK" || 
+    selectedType !== "All Types" || 
+    selectedArea !== "Any Area";
 
-      // २. जर युजरने फिल्टर बॉक्स वापरले असतील तर (Instant Results):
-      if (selectedCity !== "All Cities" && p.location?.city !== selectedCity) return false;
+  // JAR FILTER ACTIVE NASEL -> LATEST 10 DAKHVA
+  if (!isAnyFilterActive) {
+    return [...baseProperties]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 20);
+  }
 
-      if (activeTab === "residential") {
-        const res = p.residentialDetails || {};
-        const config = res.config || {};
-        if (selectedType !== "All Types" && !res.propertySubTypes?.includes(selectedType)) return false;
+  // JAR FILTER ACTIVE ASEL -> NORMAL FILTERING
+  return baseProperties.filter(p => {
+    if (isSearchActive && appliedSearch !== "") {
+      const content = `${p.title} ${p.location?.city} ${p.location?.area} ${p.builder?.name}`.toLowerCase();
+      if (!content.includes(appliedSearch.toLowerCase())) return false;
+    }
 
-        let prices = [];
-        let bhks = [];
-        Object.keys(config).forEach(s => {
-          Object.keys(config[s]).forEach(b => {
-            bhks.push(b);
-            config[s][b].forEach(plan => { if(plan.price) prices.push(Number(plan.price)) });
-          });
+    if (selectedCity !== "All Cities" && p.location?.city !== selectedCity) return false;
+
+    if (activeTab === "residential") {
+      const res = p.residentialDetails || {};
+      const config = res.config || {};
+      if (selectedType !== "All Types" && !res.propertySubTypes?.includes(selectedType)) return false;
+
+      let bhks = [];
+      let prices = [];
+      Object.keys(config).forEach(s => {
+        Object.keys(config[s]).forEach(b => {
+          bhks.push(b);
+          config[s][b].forEach(plan => { if(plan.price) prices.push(Number(plan.price)) });
         });
+      });
 
-        if (selectedBHK !== "All BHK" && !bhks.includes(selectedBHK)) return false;
-        if (selectedBudget !== "All Budgets") {
-          return prices.some(pr => {
-            if (selectedBudget === "Under 40L") return pr < 4000000;
-            if (selectedBudget === "40L - 70L") return pr >= 4000000 && pr <= 7000000;
-            if (selectedBudget === "70L - 1Cr") return pr >= 7000000 && pr <= 10000000;
-            if (selectedBudget === "1Cr - 2Cr") return pr >= 10000000 && pr <= 20000000;
-            if (selectedBudget === "2Cr - 3Cr") return pr >= 20000000 && pr <= 30000000;
-            if (selectedBudget === "3Cr - 4Cr") return pr >= 30000000 && pr <= 40000000;
-            if (selectedBudget === "4Cr +") return pr >= 40000000;
-            return false;
-          });
-        }
-      } else {
-        // Commercial/Plot Logic
-        if (selectedType !== "All Types") {
-          const sub = p.propertyType === "commercial" ? p.commercialDetails?.propertySubTypes : p.plotDetails?.propertySubTypes;
-          if (!sub?.includes(selectedType)) return false;
-        }
-        if (selectedBudget !== "All Budgets") {
-          const pr = p.price?.starting || 0;
+      if (selectedBHK !== "All BHK" && !bhks.includes(selectedBHK)) return false;
+      
+      if (selectedBudget !== "All Budgets") {
+        return prices.some(pr => {
           if (selectedBudget === "Under 40L") return pr < 4000000;
           if (selectedBudget === "40L - 70L") return pr >= 4000000 && pr <= 7000000;
           if (selectedBudget === "70L - 1Cr") return pr >= 7000000 && pr <= 10000000;
@@ -182,18 +183,104 @@ export default function HomePage() {
           if (selectedBudget === "2Cr - 3Cr") return pr >= 20000000 && pr <= 30000000;
           if (selectedBudget === "3Cr - 4Cr") return pr >= 30000000 && pr <= 40000000;
           if (selectedBudget === "4Cr +") return pr >= 40000000;
-        }
+          return false;
+        });
       }
-      return true;
-    });
-  }, [properties, activeTab, appliedSearch, isSearchActive, selectedCity, selectedBudget, selectedBHK, selectedType]);
+    } else {
+      // Commercial & Plot Budget Logic
+      if (selectedType !== "All Types") {
+        const sub = p.propertyType === "commercial" ? p.commercialDetails?.propertySubTypes : p.plotDetails?.propertySubTypes;
+        if (!sub?.includes(selectedType)) return false;
+      }
+      if (selectedBudget !== "All Budgets") {
+        const pr = p.price?.starting || 0;
+        if (selectedBudget === "Under 40L") return pr < 4000000;
+        if (selectedBudget === "40L - 70L") return pr >= 4000000 && pr <= 7000000;
+        if (selectedBudget === "70L - 1Cr") return pr >= 7000000 && pr <= 10000000;
+        if (selectedBudget === "1Cr - 2Cr") return pr >= 10000000 && pr <= 20000000;
+        if (selectedBudget === "2Cr - 3Cr") return pr >= 20000000 && pr <= 30000000;
+        if (selectedBudget === "3Cr - 4Cr") return pr >= 30000000 && pr <= 40000000;
+        if (selectedBudget === "4Cr +") return pr >= 40000000;
+      }
+    }
+    return true;
+  });
+}, [properties, activeTab, appliedSearch, isSearchActive, selectedCity, selectedBudget, selectedBHK, selectedType, selectedArea]);
 
-  const displayProperties = filteredProperties.length > 0 
-    ? filteredProperties 
-    : properties.filter(p => p.propertyType === activeTab);
+// --- 2. THE FALLBACK LOGIC (Tu mhatlas tasa) ---
+const displayProperties = useMemo(() => {
+  // Jar filters ne kahi results aale, tar tech dakhva
+  if (filteredProperties.length > 0) return filteredProperties;
 
-  const upcomingProjects = displayProperties.filter(p => p.status === "under_construction");
-  const newlyLaunched = displayProperties.filter(p => p.status !== "under_construction");
+  // Jar results ZERO aale (Zero results found), tar fallback dakhva:
+  let base = properties.filter(p => p.propertyType === activeTab);
+
+  if (selectedCity !== "All Cities") {
+    // Jar Mumbai select asel ani budget mule 0 results asel, tar Mumbai chya sglya properties dakhva
+    return base.filter(p => p.location?.city === selectedCity);
+  } else {
+    // Jar "All Cities" asel ani results 0 asel, tar Latest 20 dakhva (Load kami krnyasathi)
+    return [...base].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 20);
+  }
+}, [filteredProperties, properties, activeTab, selectedCity]);
+
+// 3. Upcoming & Newly Launched
+const upcomingProjects = displayProperties.filter(p => p.status === "under_construction");
+const newlyLaunched = displayProperties.filter(p => p.status !== "under_construction");
+
+// --- NAVIN ADD KARA: Top Selling Logic ---
+useEffect(() => {
+  const fetchRatings = async () => {
+    if (properties.length === 0) return;
+    
+    try {
+      const dataWithRatings = await Promise.all(
+        properties.map(async (prop) => {
+          try {
+            // Pratyek property sathi reviews cha call (Jasa tu TopRatedInCity madhye kela aahe)
+            const revRes = await axios.get(`http://localhost:5000/api/reviews/property/${prop._id}`);
+            const reviews = revRes.data.data || [];
+            const avg = reviews.length > 0 
+              ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) 
+              : 0;
+            return { ...prop, calculatedRating: avg };
+          } catch (err) {
+            return { ...prop, calculatedRating: 0 };
+          }
+        })
+      );
+      setPropertiesWithRatings(dataWithRatings);
+    } catch (error) {
+      console.error("Error fetching ratings:", error);
+    }
+  };
+
+  fetchRatings();
+}, [properties]);
+
+// 3. Aata Top Selling Logic madhye calculatedRating vapra
+const topSellingProperties = useMemo(() => {
+  // filteredProperties chya ऐवजी propertiesWithRatings वापरा जेणेकरून Ratings available astil
+  let baseData = propertiesWithRatings.filter(p => p.propertyType === activeTab);
+  
+  if (selectedCity !== "All Cities") {
+    baseData = baseData.filter(p => p.location?.city === selectedCity);
+  }
+
+  return [...baseData]
+    .sort((a, b) => {
+      // DESCENDING ORDER (High to Low)
+      const rA = a.calculatedRating || 0;
+      const rB = b.calculatedRating || 0;
+
+      if (rB !== rA) {
+        return rB - rA; 
+      }
+      // Jar rating same asel tar Navin property pahili
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    })
+    .slice(0, 8);
+}, [propertiesWithRatings, activeTab, selectedCity]);
 
   const resetFiltersOnTabChange = (tab) => {
     setActiveTab(tab);
@@ -207,16 +294,22 @@ export default function HomePage() {
     setSelectedBudget("All Budgets");
   };
 
-  const resultText = useMemo(() => {
-    if (isSearchActive && appliedSearch) return `matching "${appliedSearch}"`;
-    let parts = [];
-    if (selectedBHK !== "All BHK") parts.push(selectedBHK);
-    if (selectedType !== "All Types") parts.push(selectedType);
-    parts.push(activeTab);
-    if (selectedCity !== "All Cities") parts.push(`in ${selectedCity}`);
-    if (selectedBudget !== "All Budgets") parts.push(`within ${selectedBudget}`);
-    return parts.join(" ");
-  }, [isSearchActive, appliedSearch, selectedBHK, selectedType, activeTab, selectedCity, selectedBudget]);
+const resultText = useMemo(() => {
+  const isAnyFilterActive = isSearchActive || selectedCity !== "All Cities" || selectedBudget !== "All Budgets";
+  
+  // Default state dakhvnyasathi
+  if (!isAnyFilterActive) return `Latest ${activeTab} Projects Added Recently`;
+
+  // Filtered state sathi tujha junach logic
+  if (isSearchActive && appliedSearch) return `matching "${appliedSearch}"`;
+  let parts = [];
+  if (selectedBHK !== "All BHK") parts.push(selectedBHK);
+  if (selectedType !== "All Types") parts.push(selectedType);
+  parts.push(activeTab);
+  if (selectedCity !== "All Cities") parts.push(`in ${selectedCity}`);
+  if (selectedBudget !== "All Budgets") parts.push(`within ${selectedBudget}`);
+  return parts.join(" ");
+}, [isSearchActive, appliedSearch, selectedBHK, selectedType, activeTab, selectedCity, selectedBudget]);
 
   return (
     <div className="min-h-screen bg-[#f8fafc]">
@@ -342,6 +435,36 @@ export default function HomePage() {
                   <div className="bg-white py-12 rounded-3xl text-center border-2 border-dashed border-slate-200 font-bold text-slate-400 uppercase text-xs tracking-widest">No properties listed in this category</div>
                 )}
               </section>
+              {/* --- Newly Launched Section Samplyavar --- */}
+              {/* --- TOP SELLING SECTION --- */}
+              <section className="mt-24">
+                <div className="mb-10 px-6 flex items-center gap-4">
+                  <div className="h-1.5 w-12 bg-amber-500 rounded-full"></div>
+                  <h2 className="text-3xl font-black text-slate-800 uppercase italic tracking-tighter">
+                    Top Selling Projects
+                  </h2>
+                  <div className="flex items-center gap-1.5 bg-amber-50 px-3 py-1 rounded-full border border-amber-100">
+                    <Sparkles size={12} className="text-amber-500" />
+                    <span className="text-amber-700 text-[10px] font-black uppercase tracking-wider">Top Rated</span>
+                  </div>
+                </div>
+
+                {topSellingProperties.length > 0 ? (
+                  <PropertySlider>
+                    {topSellingProperties.map((p) => (
+                      <div key={p._id} className="min-w-[340px] md:min-w-[420px] lg:min-w-[460px] flex-shrink-0">
+                        <PropertyCard property={p} />
+                      </div>
+                    ))}
+                  </PropertySlider>
+                ) : (
+                  <div className="bg-white py-12 rounded-3xl text-center border-2 border-dashed border-slate-200 font-bold text-slate-400 uppercase text-xs tracking-widest">
+                    No Rated Properties Found
+                  </div>
+                )}
+              </section>
+
+              {/* --- Top Developers Section Chya Varti --- */}
               {/* --- 3. NAVIN BUILDERS SECTION (Newly Launched च्या खाली) --- */}
             <section className="mt-24">
               <div className="mb-10 px-6 flex items-center justify-between">
