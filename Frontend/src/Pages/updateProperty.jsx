@@ -263,6 +263,14 @@ export default function UpdateProperty() {
     setConfig(newConfig);
   };
 
+  const handleGalleryChange = (e) => {
+  const files = Array.from(e.target.files);
+  if (files.length > 8) {
+    alert("Bhai, fakt 8 images select kara!");
+    e.target.value = ""; // Selection clear kara
+  }
+};
+
   const onSubmit = async (data) => {
     try {
       const formData = new FormData();
@@ -501,33 +509,83 @@ export default function UpdateProperty() {
             )}
 
             {step === 3 && (
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                <SectionTitle title="Media Update" icon={<Upload className="w-5 h-5" />} />
-                <div className="space-y-2 p-4 bg-slate-50 rounded-xl border">
-                  <label className="text-xs font-bold text-slate-500 uppercase">Cover Image</label>
-                  {existingMedia.coverImage && ( <span className="text-[9px] bg-white border border-blue-100 px-2 py-0.5 rounded text-blue-600 truncate block mb-1">Old: {getOriginalName(existingMedia.coverImage)}</span> )}
-                  <input type="file" {...register("coverImage")} className="w-full text-sm mt-2" />
-                </div>
-                <div className="space-y-2 p-4 bg-slate-50 rounded-xl border">
-                  <label className="text-xs font-bold text-slate-500 uppercase">Society Plan</label>
-                  {existingMedia.societyPlan && ( <span className="text-[9px] bg-white border border-blue-100 px-2 py-0.5 rounded text-blue-600 truncate block mb-1">Old: {getOriginalName(existingMedia.societyPlan)}</span> )}
-                  <input type="file" {...register("societyPlan")} className="w-full text-sm mt-2" />
-                </div>
-                <div className="space-y-2 p-4 bg-slate-50 rounded-xl border">
-                  <label className="text-xs font-bold text-slate-500 uppercase block">Gallery</label>
-                  {existingMedia.gallery.length > 0 && (
-                    <div className="flex flex-wrap gap-2 my-1">
-                      {existingMedia.gallery.map((g, i) => ( <span key={i} className="text-[9px] bg-white border border-blue-100 px-2 py-0.5 rounded text-blue-600 truncate max-w-[150px]">Old: {getOriginalName(g)}</span> ))}
-                    </div>
-                  )}
-                  <input type="file" multiple {...register("gallery")} className="w-full text-sm mt-2" />
-                </div>
-                <div className="flex gap-4 pt-4">
-                  <button type="button" onClick={back} className="bg-slate-200 px-6 py-3 rounded-xl font-bold flex-1">Back</button>
-                  <button type="submit" className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex-[2]">Update Property</button>
-                </div>
-              </form>
-            )}
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              <SectionTitle title="Media Update" icon={<Upload className="w-5 h-5" />} />
+
+              {/* Cover Image Section */}
+              <div className="space-y-3 p-4 bg-slate-50 rounded-xl border">
+                <label className="text-xs font-bold text-slate-500 uppercase">Cover Image</label>
+                {existingMedia.coverImage && (
+                  <div className="flex items-center gap-3 p-2 bg-white rounded-lg border border-blue-100">
+                    <img 
+                      src={`http://localhost:5000/${existingMedia.coverImage}`} 
+                      className="w-12 h-12 object-cover rounded shadow-sm" 
+                      alt="Old Cover"
+                    />
+                    <span className="text-[10px] text-blue-600 font-medium truncate max-w-[200px]">
+                      Current: {getOriginalName(existingMedia.coverImage)}
+                    </span>
+                  </div>
+                )}
+                <input type="file" {...register("coverImage")} className="w-full text-sm mt-2 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+              </div>
+
+              {/* Society Plan Section */}
+              <div className="space-y-3 p-4 bg-slate-50 rounded-xl border">
+                <label className="text-xs font-bold text-slate-500 uppercase">Society Plan</label>
+                {existingMedia.societyPlan && (
+                  <div className="flex items-center gap-3 p-2 bg-white rounded-lg border border-blue-100">
+                    <img 
+                      src={`http://localhost:5000/${existingMedia.societyPlan}`} 
+                      className="w-12 h-12 object-cover rounded shadow-sm" 
+                      alt="Old Plan"
+                    />
+                    <span className="text-[10px] text-blue-600 font-medium truncate max-w-[200px]">
+                      Current: {getOriginalName(existingMedia.societyPlan)}
+                    </span>
+                  </div>
+                )}
+                <input type="file" {...register("societyPlan")} className="w-full text-sm mt-2 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+              </div>
+
+              {/* Gallery Section with 8 Images Limit */}
+              <div className="space-y-3 p-4 bg-slate-50 rounded-xl border">
+                <label className="text-xs font-bold text-slate-500 uppercase block">Gallery (Max 8 Images)</label>
+                
+                {/* Old Gallery Images Display */}
+                {existingMedia.gallery.length > 0 && (
+                  <div className="grid grid-cols-4 gap-2 mb-3">
+                    {existingMedia.gallery.map((g, i) => (
+                      <div key={i} className="relative group">
+                        <img 
+                          src={`http://localhost:5000/${g}`} 
+                          className="w-full h-16 object-cover rounded-lg border border-slate-200" 
+                          alt={`gallery-${i}`}
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-lg">
+                          <span className="text-[8px] text-white font-bold">Old</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <input 
+                  type="file" 
+                  multiple 
+                  {...register("gallery")} 
+                  onChange={handleGalleryChange}
+                  className="w-full text-sm mt-2 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" 
+                />
+                <p className="text-[10px] text-slate-400 mt-1">* Navin select kelya nanter junya images replace hotil.</p>
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button type="button" onClick={back} className="bg-slate-200 px-6 py-3 rounded-xl font-bold flex-1">Back</button>
+                <button type="submit" className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex-[2]">Update Property</button>
+              </div>
+            </form>
+          )}
           </div>
         </div>
       </div>
