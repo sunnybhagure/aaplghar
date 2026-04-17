@@ -1,10 +1,13 @@
 const multer = require("multer");
-const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const cloudinary = require("../config/cloudinary");
+const cloudinaryStorageModule = require("multer-storage-cloudinary");
 
-// multer.js
+// This check handles both possible export styles
+const CloudinaryStorage = cloudinaryStorageModule.CloudinaryStorage 
+    || cloudinaryStorageModule; 
+
 const storage = new CloudinaryStorage({
-  cloudinary,
+  cloudinary: cloudinary,
   params: async (req, file) => {
     // Check if this is an admin cover image upload
     if (req.body.builderName) {

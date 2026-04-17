@@ -63,6 +63,8 @@ app.use("/api/property", require("./routes/property"));
 app.use("/api/appointments", require("./routes/appointment"));
 app.use("/api/reviews", require("./routes/review"));
 app.use("/api/builder-reviews", require("./routes/builderReview"));
+app.use("/api/ai", require("./routes/ai"));
+
 
 
 

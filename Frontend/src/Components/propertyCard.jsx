@@ -116,8 +116,16 @@ export const PropertyCard = ({ property }) => {
       {/* Image Section */}
       {/* ✅ Updated: Smaller image width on desktop */}
       <div className="w-full md:w-[320px] h-60 md:h-full shrink-0 overflow-hidden relative">
-        <img src={currentImg || "https://via.placeholder.com/400x300"} alt={property.title} className="w-full h-full object-cover transition-transform duration-[1.5s] group-hover:scale-110" />
-        <div className="absolute top-5 left-5 bg-white/90 backdrop-blur-md text-blue-700 text-[10px] font-black px-4 py-1.5 rounded-full uppercase border border-white/50 shadow-sm">{property.status?.replace("_", " ") || "New Launch"}</div>
+<img 
+  // Jar property image nasel tar direct placeholder vapra
+  src={property.images && property.images[0] ? property.images[0] : "https://placehold.co/600x400?text=Property+Coming+Soon"} 
+  alt={property.title}
+  className="w-full h-48 object-cover"
+  onError={(e) => {
+    e.target.src = "https://placehold.co/600x400?text=Aapl+Ghar"; // Image fail zali tar he disel
+  }}
+/>      
+      <div className="absolute top-5 left-5 bg-white/90 backdrop-blur-md text-blue-700 text-[10px] font-black px-4 py-1.5 rounded-full uppercase border border-white/50 shadow-sm">{property.status?.replace("_", " ") || "New Launch"}</div>
       </div>
 
       {/* Content Section */}

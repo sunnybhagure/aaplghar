@@ -25,7 +25,8 @@ const appointmentSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now },
     message: String,
     isNewForBuilder: { type: Boolean, default: true }, // For notification
-    isNewForUser: { type: Boolean, default: false } // For notification
+    isNewForUser: { type: Boolean, default: false }, // For notification
+    createdAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Appointment', appointmentSchema);

@@ -49,12 +49,15 @@ const propertySchema = new mongoose.Schema({
 ],
   
   specification: [String],
+
   projectArea: String, // Total project area acres madhye
-  possessionDate: String, // Step 2 madhli date
+  possessionDate: String,
+   // Step 2 madhli date
   facilities: [String],
 
 
   amenities: [String],
+
   nearbyLocalities: [String],
 
   images: {
@@ -64,6 +67,8 @@ const propertySchema = new mongoose.Schema({
   },
   status: { type: String, enum: ["under_construction", "ready"] },
 
+  createdAt: { type: Date, default: Date.now },
+
   // 👇 MAIN CONNECTION
   residentialDetails: residentialSchema,
   commercialDetails: commercialSchema,
@@ -72,3 +77,4 @@ const propertySchema = new mongoose.Schema({
 }, { timestamps: true });
 
 module.exports = mongoose.model("Property", propertySchema);
+

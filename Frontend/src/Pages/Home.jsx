@@ -3,12 +3,13 @@ import { useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { 
   Search, MapPin, Home, Building, LandPlot, 
-  ChevronLeft, ChevronRight, Loader2, Sparkles, Check
+  ChevronLeft, ChevronRight, Loader2, Sparkles, Check, X
 } from "lucide-react";
 
 import { PropertyCard } from "../Components/PropertyCard"; 
 import BuilderProfileCard from "../Components/builderProfileCard";
-
+import AIChatBox from "../Components/AIChatBox";
+ 
 const PropertySlider = ({ children, isEmpty }) => {
   const scrollRef = useRef(null);
   const scroll = (direction) => {
@@ -34,6 +35,7 @@ export default function HomePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(sessionStorage.getItem("home_activeTab") || searchParams.get("tab") || "residential");
   
+  const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   // Search States
   const [searchInput, setSearchInput] = useState(sessionStorage.getItem("home_searchQuery") || "");
   const [appliedSearch, setAppliedSearch] = useState(sessionStorage.getItem("home_searchQuery") || "");
@@ -496,6 +498,46 @@ const resultText = useMemo(() => {
             </section>
           </div>
         )}
+      </div>
+      {/* --- 2. AI AGENT FLOATING SECTION (MAIN PART) --- */}
+      <div className="fixed bottom-6 right-6 z-[9999] flex flex-col items-end gap-3">
+        
+        {/* Tooltip Message */}
+        {/* Tooltip Message */}
+        {!isAIChatOpen && (
+          <div className="bg-white px-4 py-2 rounded-2xl shadow-2xl border border-blue-100 animate-bounce cursor-pointer" onClick={() => setIsAIChatOpen(true)}>
+            {/* P tag chya jaagi DIV vapra karan aat DIV aahe */}
+            <div className="text-[10px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
+              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></div>
+              Find home with Smart AI
+            </div>
+          </div>
+        )}
+
+        {/* Chat Box Display */}
+        {/* --- HomePage.js madhye ha badal kara --- */}
+{isAIChatOpen && (
+  <div className="relative animate-in slide-in-from-bottom-5 duration-300">
+    {/* Close Button on Top of ChatBox */}
+    <button 
+      onClick={() => setIsAIChatOpen(false)}
+      className="absolute -top-4 -right-2 bg-slate-900 text-white p-1.5 rounded-full shadow-xl z-[10000] hover:bg-red-500 transition-colors"
+    >
+      <X size={16} />
+    </button>
+    
+    {/* Prop pass kara ithe -> onClose */}
+    <AIChatBox onClose={() => setIsAIChatOpen(false)} /> 
+  </div>
+)}
+
+        {/* Main Floating Toggle Button */}
+        <button 
+          onClick={() => setIsAIChatOpen(!isAIChatOpen)}
+          className={`p-4 rounded-2xl shadow-2xl transition-all duration-300 active:scale-90 ${isAIChatOpen ? 'bg-slate-800 rotate-90 scale-0' : 'bg-blue-600 hover:bg-blue-700'}`}
+        >
+          <Sparkles className="text-white w-7 h-7" />
+        </button>
       </div>
       {showSuggestions && <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setShowSuggestions(false)}></div>}
     </div>
