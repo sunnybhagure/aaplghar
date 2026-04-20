@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { ChevronLeft, ChevronRight, Trophy } from 'lucide-react';
 import BuilderProfileCard from './builderProfileCard';
+import BuilderCitiesCount from './BuilderCitiesCount';
+
+
 
 const TopBuildersInCity = ({ city }) => {
   const [topBuilders, setTopBuilders] = useState([]);

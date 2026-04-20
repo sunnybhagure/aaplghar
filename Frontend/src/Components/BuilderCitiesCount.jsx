@@ -6,18 +6,22 @@ const BuilderCitiesCount = ({ builderId }) => {
 
   useEffect(() => {
     const fetchProperties = async () => {
-      try {
-        const res = await axios.get(`http://localhost:5000/api/property/builder/${builderId}`);
-        if (res.data.data) {
-          const properties = res.data.data;
-          const allCities = properties.map(p => p.location?.city || p.city).filter(Boolean);
-          const uniqueCities = [...new Set(allCities)];
-          setCitiesCount(uniqueCities.length);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
+  try {
+    const res = await axios.get(`http://localhost:5000/api/property/builder/${builderId}`);
+    
+    // Nit bgh: res.data (Axios data) -> .data (Tujha Controller success:true, data:[])
+    const actualData = res.data.data; 
+
+    if (actualData && Array.isArray(actualData)) {
+      // Location object madhun city kadha
+      const allCities = actualData.map(p => p.location?.city).filter(Boolean);
+      const uniqueCities = [...new Set(allCities)];
+      setCitiesCount(uniqueCities.length);
+    }
+  } catch (err) {
+    console.error("City Count Fetch Error:", err);
+  }
+};
     if (builderId) fetchProperties();
   }, [builderId]);
 

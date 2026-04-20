@@ -51,7 +51,10 @@ const BuilderProfileCard = ({ builder }) => {
             </div>
             <div className="w-[1px] h-6 bg-slate-100"></div>
             <div>
-              <p className="text-sm font-black text-orange-600 leading-none"><BuilderCitiesCount builderId={builder._id} /></p>
+              <p className="text-sm font-black text-orange-600 leading-none">
+                {/* Ensure builder._id is definitely defined here */}
+                {builder._id ? <BuilderCitiesCount builderId={builder._id} /> : 0}
+              </p>
               <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">Cities</p>
             </div>
           </div>
