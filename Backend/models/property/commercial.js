@@ -9,3 +9,4 @@ const commercialSchema = new mongoose.Schema({
 });
 
 module.exports = commercialSchema;
+

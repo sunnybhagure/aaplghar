@@ -10,3 +10,4 @@ const residentialSchema = new mongoose.Schema({
 });
 
 module.exports = residentialSchema;
+
