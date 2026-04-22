@@ -9,7 +9,7 @@ const BuilderCitiesCount = ({ builderId }) => {
   try {
     const res = await axios.get(`http://localhost:5000/api/property/builder/${builderId}`);
     
-    // Nit bgh: res.data (Axios data) -> .data (Tujha Controller success:true, data:[])
+    
     const actualData = res.data.data; 
 
     if (actualData && Array.isArray(actualData)) {
