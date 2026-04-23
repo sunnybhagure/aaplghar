@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import { Mail, Lock, Loader2, ArrowRight, Building2, Home } from "lucide-react"
 
-const LoginPage = () => {
+const LoginPage = ({ showAlert }) => {
   const [formData, setFormData] = useState({ email: "", password: "" })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -31,12 +31,13 @@ const LoginPage = () => {
       if (data.success) {
         localStorage.setItem("token", data.token)
         localStorage.setItem("user", JSON.stringify(data.user))
+        showAlert("success", "Welcome Back! Login Successful.") 
         navigate("/") 
       } else {
-        setError(data.message || "Invalid credentials")
+        showAlert("error", data.message || "Invalid credentials")
       }
     } catch (err) {
-      setError("Server connection failed")
+      showAlert("error", "Server connection failed")
     } finally {
       setLoading(false)
     }

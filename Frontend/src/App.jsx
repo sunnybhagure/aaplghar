@@ -1,4 +1,4 @@
-
+import React, { useState } from 'react';
 import './App.css'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Home from './Pages/Home'
@@ -14,18 +14,36 @@ import YourProperties from './Pages/yourProperty.jsx'
 import UpdateProperty from './Pages/updateProperty.jsx'
 import UserProfile from './Pages/userProfile.jsx'
 import BuilderDetails from './Pages/builderDetails.jsx'
+import Alert from './Components/alert.jsx'
 
 function App() {
+  
+const [flash, setFlash] = useState(null);
+
+  const showAlert = (type, message) => {
+    setFlash({ type, message });
+  };
+
+  const closeAlert = () => {
+    setFlash(null);
+  };
   
 
   return (
     <>
     <Router>
       <Navbar />
+      {flash && (
+          <Alert 
+            type={flash.type} 
+            message={flash.message} 
+            onClose={closeAlert} 
+          />
+        )}
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/login" element={<LoginPage showAlert={showAlert} />} />
+        <Route path="/register" element={<RegisterPage showAlert={showAlert} />} />
         <Route path="/AdminLogin" element={<AdminLogin />} />
         <Route path="/AdminRegister" element={<AdminRegister />} />
         <Route path="/admin-dashboard" element={<AdminDashboard />} />

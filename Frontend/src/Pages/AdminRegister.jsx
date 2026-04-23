@@ -37,14 +37,12 @@ const AdminRegister = () => {
 
       if (data.success) {
         localStorage.setItem("adminToken", data.token)
-        alert("Success: Administrative Credentials Granted.")
+        showAlert("success", "Administrative Credentials Granted! Welcome to the Network.")
         navigate("/admin-dashboard")
       } else {
-        alert(data.message)
-      }
+      showAlert("error", data.message || "Registration failed. Please check your details.")      }
     } catch (err) {
-      alert("Registration failed: Connection Error")
-    } finally {
+      showAlert("error", "Connection failed. Please check if the server is running.")    } finally {
       setLoading(false)
     }
   }

@@ -144,7 +144,9 @@ export default function UpdateProperty() {
 
   const [existingMedia, setExistingMedia] = useState({ coverImage: "", societyPlan: "", gallery: [] });
 
-  const [questionsList, setQuestionsList] = useState([]); // Questions sathi navin state
+  const [questionsList, setQuestionsList] = useState([]);
+  
+  const [isUpdating, setIsUpdating] = useState(false); // Update process sathi// Questions sathi navin state
 
   const getOriginalName = (path) => {
     if (!path || typeof path !== 'string') return "";
@@ -272,6 +274,7 @@ export default function UpdateProperty() {
 };
 
   const onSubmit = async (data) => {
+    setIsUpdating(true); // <--- Loading suru zali
     try {
       const formData = new FormData();
       const allData = getValues();
@@ -307,7 +310,9 @@ export default function UpdateProperty() {
         headers: { "Content-Type": "multipart/form-data", "Authorization": `Bearer ${token}` },
       });
       if (res.data.success) { alert("Property Updated Successfully!"); navigate(`/property/${id}`); }
-    } catch (error) { alert("Update Failed!"); }
+    } catch (error) { alert("Update Failed!"); }finally {
+    setIsUpdating(false); // <--- Loading thambli (Success hovo kiva Error yevo)
+  }
   };
 
   if (initialLoading) return <div className="h-screen flex items-center justify-center bg-slate-50"><Loader2 className="w-12 h-12 animate-spin text-blue-600" /></div>;
@@ -582,7 +587,9 @@ export default function UpdateProperty() {
 
               <div className="flex gap-4 pt-4">
                 <button type="button" onClick={back} className="bg-slate-200 px-6 py-3 rounded-xl font-bold flex-1">Back</button>
-                <button type="submit" className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex-[2]">Update Property</button>
+                <button type="submit" disabled={isUpdating} className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex-[2]">
+                  {isUpdating ? "Updating..." : "Update Property"}
+                </button>
               </div>
             </form>
           )}

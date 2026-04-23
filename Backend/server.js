@@ -4,6 +4,9 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 require("dotenv").config();
 
+const session = require('express-session');
+const flash = require('connect-flash');
+
 const app = express();
 
 const dburl = process.env.MONGODB_URI
@@ -49,7 +52,13 @@ mongoose.connection.on('error', (err) => {
     console.log('MongoDB connection error:', err);
 });
  
+app.use(session({
+    secret: 'secretKey', // kontihi ek string tak
+    resave: false,
+    saveUninitialized: true
+}));
 
+app.use(flash());
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -82,4 +91,10 @@ app.listen(PORT, () => {
 app.use((err, req, res, next) => {
   console.error("EXPRESS ERROR:", err); // Ata yithe [object Object] chya jagi error message disel
   res.status(500).send(err.message);
+});
+
+app.use((req, res, next) => {
+    res.locals.error = req.flash('error');
+    res.locals.success = req.flash('success');
+    next();
 });
