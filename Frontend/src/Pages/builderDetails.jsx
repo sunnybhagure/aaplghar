@@ -59,7 +59,7 @@ const BuilderDetails = () => {
     }
   }, []);
 
-  // Dynamic Search Suggestions (Property Titles & Cities from current data)
+  
   const suggestions = useMemo(() => {
     if (!searchInput.trim() || !data) return [];
     const query = searchInput.toLowerCase();
