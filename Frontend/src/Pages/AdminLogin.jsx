@@ -28,10 +28,10 @@ const AdminLogin = () => {
         localStorage.setItem("user", JSON.stringify(data.admin)) 
         navigate("/admin-dashboard")
       } else {
-        setError(data.message || "Invalid Admin Credentials")
+        showAlert("error", "Invalid Admin Credentials")
       }
     } catch (err) {
-      setError("Server Connection Failed")
+        showAlert("error", "Server connection failed")
     } finally {
       setLoading(false)
     }

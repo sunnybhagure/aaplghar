@@ -219,8 +219,9 @@ const [questionsList, setQuestionsList] = useState([]);
       const res = await axios.post("http://localhost:5000/api/property/addProperty", formData, {
         headers: { "Content-Type": "multipart/form-data", "Authorization": `Bearer ${token}` },
       });
-      if(res.data.success) { alert("Property Added Successfully!"); navigate("/my-properties"); }
-    } catch (error) { alert("Error: " + error.message); }
+      if(res.data.success) {         showAlert("success", "Property Added Successfully!")
+; navigate("/my-properties"); }
+    } catch (error) { showAlert("error", "Server connection failed"); }
   };
 
   return (
