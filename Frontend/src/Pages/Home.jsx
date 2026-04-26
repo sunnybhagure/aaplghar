@@ -151,7 +151,7 @@ const filteredProperties = useMemo(() => {
       .slice(0, 10);
   }
 
-  // JAR FILTER ACTIVE ASEL -> NORMAL FILTERING
+  
   return baseProperties.filter(p => {
     if (isSearchActive && appliedSearch !== "") {
       const content = `${p.title} ${p.location?.city} ${p.location?.area} ${p.builder?.name}`.toLowerCase();
