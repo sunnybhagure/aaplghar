@@ -11,7 +11,7 @@ const Alert = ({ type, message, onClose }) => {
 
   const isSuccess = type === 'success';
 
-  // --- SUCCESS DESIGN (Top Minimal Bar) ---
+  
   if (isSuccess) {
     return (
       <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[9999] w-full max-w-md px-4 animate-in fade-in slide-in-from-top duration-300">
@@ -28,7 +28,7 @@ const Alert = ({ type, message, onClose }) => {
     );
   }
 
-  // --- ERROR/FAILURE DESIGN (Center Modal with OK Button) ---
+
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm transition-all px-4">
       <div className="relative w-full max-w-sm bg-white rounded-3xl p-8 shadow-2xl border-t-8 border-red-500 animate-in zoom-in duration-300">

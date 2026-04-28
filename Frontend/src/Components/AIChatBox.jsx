@@ -8,7 +8,7 @@ export default function AIChatBox({ onClose }) {
   const [loading, setLoading] = useState(false);
   const [aiResults, setAiResults] = useState([]);
 
-  // ✅ Sorting logic: Highest Score First (Descending)
+  
   const sortedResults = useMemo(() => {
     return [...aiResults].sort((a, b) => (b.searchScore || 0) - (a.searchScore || 0));
   }, [aiResults]);

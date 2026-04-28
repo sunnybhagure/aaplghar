@@ -13,7 +13,7 @@ const BuilderCitiesCount = ({ builderId }) => {
     const actualData = res.data.data; 
 
     if (actualData && Array.isArray(actualData)) {
-      // Location object madhun city kadha
+      
       const allCities = actualData.map(p => p.location?.city).filter(Boolean);
       const uniqueCities = [...new Set(allCities)];
       setCitiesCount(uniqueCities.length);
