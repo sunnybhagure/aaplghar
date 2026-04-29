@@ -68,14 +68,12 @@ const UserProfile = () => {
       axios.get(`http://localhost:5000/api/builder-reviews/user/${userId}`, config)
     ]);
 
-    // --- इथे लक्ष दे ---
+
     console.log("Frontend Appointment Data:", resAppt.data); 
     
-    // जर डेटा डायरेक्ट एरे (Array) असेल तर:
+
     setAppointments(resAppt.data); 
     
-    // जर डेटा { success: true, data: [...] } असा येत असेल तर:
-    // setAppointments(resAppt.data.data || []);
 
     if (resPropRev.data.success) setPropertyReviews(resPropRev.data.data);
     if (resBuildRev.data.success) setBuilderReviews(resBuildRev.data.data);
@@ -91,7 +89,7 @@ const UserProfile = () => {
     fetchUserData();
   }, [navigate]);
 
-  // Review Deletion Logic (Alerts in English)
+
   const handleDeleteReview = async (id, type) => {
     if (!window.confirm("Are you sure you want to permanently delete this review?")) return;
 
