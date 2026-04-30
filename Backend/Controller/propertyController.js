@@ -229,7 +229,7 @@ exports.getPropertyById = async (req, res) => {
       return res.status(404).json({ success: false, message: "Property not found" });
     }
 
-    // --- HE BADAL (success: true ani data: property) ---
+    
     res.status(200).json({
       success: true,
       data: property
@@ -241,12 +241,12 @@ exports.getPropertyById = async (req, res) => {
   }
 };
 
-// 1. Specific Admin chya srv properties ghenyasathi
+
 exports.getPropertiesByBuilder = async (req, res) => {
     try {
         const { builderId } = req.params;
 
-        // ID व्हॅलिडेशन
+        
         if (!mongoose.Types.ObjectId.isValid(builderId)) {
             return res.status(400).json({ 
                 success: false, 
@@ -261,7 +261,7 @@ exports.getPropertiesByBuilder = async (req, res) => {
             select: "name email phone companyName"
         });
 
-        // जर प्रॉपर्टीज नसतील तर रिकामी ॲरे पाठवा (क्रॅश होणार नाही)
+        
         if (!properties || properties.length === 0) {
             return res.status(200).json({ 
                 success: true, 
