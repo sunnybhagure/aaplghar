@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import { Mail, Lock, Loader2, ArrowRight, Building2, Home } from "lucide-react"
+import API from "./api";
 
 const LoginPage = ({ showAlert }) => {
   const [formData, setFormData] = useState({ email: "", password: "" })
@@ -20,7 +21,7 @@ const LoginPage = ({ showAlert }) => {
     setError("")
 
     try {
-      const response = await fetch("http://localhost:5000/api/auth/login", {
+      const response = await fetch("${API}/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),

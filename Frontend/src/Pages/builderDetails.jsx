@@ -7,6 +7,7 @@ import {
   Home, Building, LandPlot, Trash2, Layers
 } from 'lucide-react';
 import BuilderAverageRating from '../Components/BuilderAverageRating';
+import API from "./api";
 
 const BuilderDetails = () => {
   const { id } = useParams();
@@ -44,7 +45,7 @@ const BuilderDetails = () => {
   useEffect(() => {
     const fetchDetails = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/admin/builder-details/${id}`);
+        const res = await axios.get(`${API}/api/admin/builder-details/${id}`);
         setData(res.data.data);
       } catch (err) { console.error("Fetch Error:", err); }
       finally { setLoading(false); }
@@ -333,7 +334,7 @@ const BuilderReviewSection = ({ builderId, currentUser }) => {
 
   useEffect(() => {
     if (builderId) {
-      axios.get(`http://localhost:5000/api/builder-reviews/${builderId}`).then(res => {
+      axios.get(`${API}/api/builder-reviews/${builderId}`).then(res => {
         if (res.data.success) setReviews(res.data.data);
       });
     }
@@ -346,7 +347,7 @@ const BuilderReviewSection = ({ builderId, currentUser }) => {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.post(`http://localhost:5000/api/builder-reviews/add`, { builderId, rating, comment }, {
+      const res = await axios.post(`${API}/api/builder-reviews/add`, { builderId, rating, comment }, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -360,7 +361,7 @@ const BuilderReviewSection = ({ builderId, currentUser }) => {
     if (window.confirm("Are you sure you want to delete this review?")) {
       try {
         const token = localStorage.getItem("token");
-        await axios.delete(`http://localhost:5000/api/builder-reviews/${reviewId}`, {
+        await axios.delete(`${API}/api/builder-reviews/${reviewId}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }

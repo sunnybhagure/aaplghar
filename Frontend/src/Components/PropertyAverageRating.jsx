@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import API from "./api";
 
 const PropertyAverageRating = ({ propertyId }) => {
   const [avgRating, setAvgRating] = useState("0.0");
@@ -7,7 +8,7 @@ const PropertyAverageRating = ({ propertyId }) => {
   useEffect(() => {
     const fetchReviews = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/reviews/property/${propertyId}`);
+        const res = await axios.get(`${API}/api/reviews/property/${propertyId}`);
         if (res.data.success) {
           const reviews = res.data.data || [];
           const avg = reviews.length > 0 ? (reviews.reduce((sum, rev) => sum + (rev.rating || 0), 0) / reviews.length).toFixed(1) : "0.0";

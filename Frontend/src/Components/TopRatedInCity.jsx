@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { PropertyCard } from './PropertyCard'; 
+import API from "./api";
 
 // propertyType navacha prop add kela aahe
 const TopRatedInCity = ({ city, currentPropertyId, propertyType }) => {
@@ -16,13 +17,13 @@ const TopRatedInCity = ({ city, currentPropertyId, propertyType }) => {
       if (!city) return;
       try {
         setLoading(true);
-        const response = await axios.get(`http://localhost:5000/api/property/filterByCity?city=${city}`);
+        const response = await axios.get(`${API}/api/property/filterByCity?city=${city}`);
         const properties = response.data.data || [];
 
         const propertiesWithRatings = await Promise.all(
           properties.map(async (prop) => {
             try {
-              const revRes = await axios.get(`http://localhost:5000/api/reviews/property/${prop._id}`);
+              const revRes = await axios.get(`${API}/api/reviews/property/${prop._id}`);
               const reviews = revRes.data.data || [];
               const avg = reviews.length > 0 
                 ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) 

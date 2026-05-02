@@ -2,7 +2,7 @@ const axios = require('axios');
 const FormData = require('form-data');
 
 // --- CONFIGURATION ---
-const API_URL = "http://localhost:5000/api/property/addProperty";
+const API_URL = "${API}/api/property/addProperty";
 const JWT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZDIzOTVlMDE4NmJmNmNjN2IxZWJlMiIsImlhdCI6MTc3NTM4NDkyNiwiZXhwIjoxNzc1OTg5NzI2fQ.DWiGFWK1GSj1ngdZ_9y3AAeX-KZwkaWFMxgiq0x1Qfg";
 
 const cities = ["Mumbai", "Pune", "Nagpur", "Nashik", "Thane", "Aurangabad", "Solapur", "Amravati", "Kolhapur", "Navi Mumbai"];

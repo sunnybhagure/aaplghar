@@ -6,6 +6,7 @@ import {
   Clock, ChevronRight, Loader2, Lock, ShieldCheck, Info,
   Star, Trash2, Building2, Home
 } from "lucide-react";
+import API from "./api";
 
 const UserProfile = () => {
   const navigate = useNavigate();
@@ -63,9 +64,9 @@ const UserProfile = () => {
 
     // API Calls
     const [resAppt, resPropRev, resBuildRev] = await Promise.all([
-      axios.get(`http://localhost:5000/api/appointments/user/${userId}`, config),
-      axios.get(`http://localhost:5000/api/reviews/user/${userId}`, config),
-      axios.get(`http://localhost:5000/api/builder-reviews/user/${userId}`, config)
+      axios.get(`${API}/api/appointments/user/${userId}`, config),
+      axios.get(`${API}/api/reviews/user/${userId}`, config),
+      axios.get(`${API}/api/builder-reviews/user/${userId}`, config)
     ]);
 
 
@@ -101,8 +102,8 @@ const UserProfile = () => {
       }
 
       const url = type === 'property'
-        ? `http://localhost:5000/api/reviews/delete/${id}`
-        : `http://localhost:5000/api/builder-reviews/${id}`;
+        ? `${API}/api/reviews/delete/${id}`
+        : `${API}/api/builder-reviews/${id}`;
 
       const res = await axios.delete(url, {
         headers: { Authorization: `Bearer ${token}` }
@@ -125,7 +126,7 @@ const UserProfile = () => {
     setProfileError(""); setProfileSuccess("");
     if (!verifyPassword.trim()) { setProfileError("Please enter your password to save changes."); return; }
     try {
-      const res = await axios.put(`http://localhost:5000/api/auth/userprofile/${user?.id || user?._id}`, { ...profileData, currentPassword: verifyPassword });
+      const res = await axios.put(`${API}/api/auth/userprofile/${user?.id || user?._id}`, { ...profileData, currentPassword: verifyPassword });
       if (res.data.success) {
         const updatedUser = res.data.user;
         setUser(updatedUser);
@@ -141,7 +142,7 @@ const UserProfile = () => {
     if (!oldPasswordForPassChange || !newPassword || !confirmPassword) { setProfileError("All fields are required."); return; }
     if (newPassword !== confirmPassword) { setProfileError("Passwords do not match."); return; }
     try {
-      const res = await axios.put(`http://localhost:5000/api/auth/userprofile/${user?.id || user?._id}`, { currentPassword: oldPasswordForPassChange, newPassword });
+      const res = await axios.put(`${API}/api/auth/userprofile/${user?.id || user?._id}`, { currentPassword: oldPasswordForPassChange, newPassword });
       if (res.data.success) { setProfileSuccess("Password updated successfully!"); setOldPasswordForPassChange(""); setNewPassword(""); setConfirmPassword(""); }
     } catch (err) { setProfileError(err.response?.data?.message || "Incorrect old password."); }
   };
@@ -149,7 +150,7 @@ const UserProfile = () => {
   const handleReschedule = async () => {
     if (!selectedAppointment || !rescheduleData.date || !rescheduleData.time) return;
     try {
-      const res = await axios.put(`http://localhost:5000/api/appointments/${selectedAppointment._id}/user-reschedule`, { date: rescheduleData.date, timeSlot: rescheduleData.time });
+      const res = await axios.put(`${API}/api/appointments/${selectedAppointment._id}/user-reschedule`, { date: rescheduleData.date, timeSlot: rescheduleData.time });
       if (res.data.success) { setShowRescheduleModal(false); fetchUserData(); }
     } catch (err) { alert(err.response?.data?.message || "Reschedule failed"); }
   };
@@ -157,14 +158,14 @@ const UserProfile = () => {
   const handleCancel = async (apptId) => {
     if (!window.confirm("Do you want to cancel this visit?")) return;
     try {
-      const res = await axios.put(`http://localhost:5000/api/appointments/${apptId}/user-cancel`);
+      const res = await axios.put(`${API}/api/appointments/${apptId}/user-cancel`);
       if (res.data.success) fetchUserData();
     } catch (err) { alert(err.response?.data?.message || "Cancel failed"); }
   };
 
   const markAsRead = async (apptId) => {
     try {
-      await axios.put(`http://localhost:5000/api/appointments/${apptId}/mark-read-user`);
+      await axios.put(`${API}/api/appointments/${apptId}/mark-read-user`);
       setAppointments(prev => prev.map(appt => appt._id === apptId ? { ...appt, isNewForUser: false } : appt));
     } catch (err) { console.error("Error marking read", err); }
   };

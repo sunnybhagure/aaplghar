@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import { ShieldPlus, User, Building2, Mail, MapPin, Phone, Lock, Loader2, ArrowLeft, ChevronRight } from "lucide-react"
+import API from "./api";
 
 const AdminRegister = () => {
   const [formData, setFormData] = useState({
@@ -27,7 +28,7 @@ const AdminRegister = () => {
     e.preventDefault()
     setLoading(true)
     try {
-      const res = await fetch("http://localhost:5000/api/admin/register", {
+      const res = await fetch("${API}/api/admin/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData)

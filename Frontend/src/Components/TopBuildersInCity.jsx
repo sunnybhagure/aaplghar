@@ -3,6 +3,7 @@ import axios from 'axios';
 import { ChevronLeft, ChevronRight, Trophy } from 'lucide-react';
 import BuilderProfileCard from './builderProfileCard';
 import BuilderCitiesCount from './BuilderCitiesCount';
+import API from "./api";
 
 
 
@@ -18,14 +19,14 @@ const TopBuildersInCity = ({ city }) => {
       setLoading(true);
       
       // 1. City wise unique builders ghyayche
-      const response = await axios.get(`http://localhost:5000/api/property/buildersByCity?city=${city}`);
+      const response = await axios.get(`${API}/api/property/buildersByCity?city=${city}`);
       const uniqueBuilders = response.data.data || [];
 
       // 2. Pratyek builder sathi reviews fetch karun average kadhne
       const buildersWithData = await Promise.all(
         uniqueBuilders.map(async (builder) => {
           try {
-            const revRes = await axios.get(`http://localhost:5000/api/reviews/builder/${builder._id}`);
+            const revRes = await axios.get(`${API}/api/reviews/builder/${builder._id}`);
             
             // 👉 ITHLI CHUK: Controller 'builderReviews' pathvto, 'data' nahi
             const reviews = revRes.data.builderReviews || []; 

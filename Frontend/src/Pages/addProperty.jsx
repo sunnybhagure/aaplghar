@@ -6,6 +6,7 @@ import {
   ArrowLeft, ClipboardList, X, Trash2, MapPin
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import API from "./api";
 
 // --- INDIAN PRICE FORMATTER (NO CHANGE) ---
 const formatIndianPrice = (num) => {
@@ -216,7 +217,7 @@ const [questionsList, setQuestionsList] = useState([]);
       if (data.gallery) Array.from(data.gallery).forEach(file => formData.append("gallery", file));
 
       const token = localStorage.getItem("adminToken");
-      const res = await axios.post("http://localhost:5000/api/property/addProperty", formData, {
+      const res = await axios.post("${API}/api/property/addProperty", formData, {
         headers: { "Content-Type": "multipart/form-data", "Authorization": `Bearer ${token}` },
       });
       if(res.data.success) {         showAlert("success", "Property Added Successfully!")

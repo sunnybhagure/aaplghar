@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import { ShieldCheck, Lock, Mail, Loader2, ChevronRight, Fingerprint, Globe, ArrowRight } from "lucide-react"
 
+import API from "./api";
 const AdminLogin = () => {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -16,7 +17,7 @@ const AdminLogin = () => {
     setLoading(true)
     setError("")
     try {
-      const res = await fetch("http://localhost:5000/api/admin/login", {
+      const res = await fetch("${API}/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password })

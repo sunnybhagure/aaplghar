@@ -6,6 +6,7 @@ import {
   ArrowLeft, ClipboardList, MapPin, X, Trash2, PlusCircle, Loader2, ImageIcon, FileText 
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
+import API from "./api";
 
 // --- PRICE CONVERTER LOGIC ---
 const formatPrice = (value) => {
@@ -158,7 +159,7 @@ export default function UpdateProperty() {
   useEffect(() => {
     const fetchProperty = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/property/getProperty/${id}`);
+        const res = await axios.get(`${API}/api/property/getProperty/${id}`);
         const p = res.data.data;
         
         setValue("title", p.title);
@@ -306,7 +307,7 @@ export default function UpdateProperty() {
       if (data.gallery) Array.from(data.gallery).forEach(f => formData.append("gallery", f));
 
       const token = localStorage.getItem("adminToken");
-      const res = await axios.put(`http://localhost:5000/api/property/update/${id}`, formData, {
+      const res = await axios.put(`${API}/api/property/update/${id}`, formData, {
         headers: { "Content-Type": "multipart/form-data", "Authorization": `Bearer ${token}` },
       });
       if (res.data.success) { alert("Property Updated Successfully!"); navigate(`/property/${id}`); }
@@ -523,7 +524,7 @@ export default function UpdateProperty() {
                 {existingMedia.coverImage && (
                   <div className="flex items-center gap-3 p-2 bg-white rounded-lg border border-blue-100">
                     <img 
-                      src={`http://localhost:5000/${existingMedia.coverImage}`} 
+                      src={`${API}/${existingMedia.coverImage}`} 
                       className="w-12 h-12 object-cover rounded shadow-sm" 
                       alt="Old Cover"
                     />
@@ -541,7 +542,7 @@ export default function UpdateProperty() {
                 {existingMedia.societyPlan && (
                   <div className="flex items-center gap-3 p-2 bg-white rounded-lg border border-blue-100">
                     <img 
-                      src={`http://localhost:5000/${existingMedia.societyPlan}`} 
+                      src={`${API}/${existingMedia.societyPlan}`} 
                       className="w-12 h-12 object-cover rounded shadow-sm" 
                       alt="Old Plan"
                     />
@@ -563,7 +564,7 @@ export default function UpdateProperty() {
                     {existingMedia.gallery.map((g, i) => (
                       <div key={i} className="relative group">
                         <img 
-                          src={`http://localhost:5000/${g}`} 
+                          src={`${API}/${g}`} 
                           className="w-full h-16 object-cover rounded-lg border border-slate-200" 
                           alt={`gallery-${i}`}
                         />

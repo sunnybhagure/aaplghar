@@ -5,6 +5,7 @@ import {
   Loader2, CheckCircle, Timer, LayoutGrid, 
   Building2, ChevronLeft, ChevronRight, Search, Sparkles
 } from "lucide-react";
+import API from "./api";
 
 const PropertySlider = ({ children }) => {
   const scrollRef = useRef(null);
@@ -63,7 +64,7 @@ export default function YourProperties() {
       }
       try {
         setLoading(true);
-        const res = await axios.get(`http://localhost:5000/api/property/builder/${builderId}`);
+        const res = await axios.get(`${API}/api/property/builder/${builderId}`);
         const data = res.data.data || res.data || [];
         if (data.length > 0) {
           const firstProp = data[0];

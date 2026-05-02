@@ -6,6 +6,7 @@ import {
   Loader2, ChevronDown, ChevronUp, X, Building2,
   Trash2, Edit3, Phone, Clock, Layers ,Star, Send
 } from "lucide-react";
+import API from "./api";
 
 
 import PropertyMap from "../Components/PropertyMap";
@@ -72,7 +73,7 @@ export default function PropertyShow() {
   const [builderFullData, setBuilderFullData] = useState(null);
   
 
-  const baseURL = "http://localhost:5000";
+  const baseURL = "${API}";
 
   // User details localstorage madhun kadhun state madhe bhara
   useEffect(() => {
@@ -106,7 +107,7 @@ export default function PropertyShow() {
 useEffect(() => {
   const fetchDetails = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/property/getProperty/${id}`);
+      const res = await axios.get(`${API}/api/property/getProperty/${id}`);
       const data = res.data.data || res.data;
       setProperty(data);
       setActiveImg(data.images?.coverImage || data.images?.images?.coverImage || "");
@@ -115,7 +116,7 @@ useEffect(() => {
       // Jar builder chi fakt ID yet asel tar full data fetch kara
       const builderId = data.builder?._id || data.builder;
       if (builderId) {
-        const builderRes = await axios.get(`http://localhost:5000/api/builder/getBuilder/${builderId}`);
+        const builderRes = await axios.get(`${API}/api/builder/getBuilder/${builderId}`);
         setBuilderFullData(builderRes.data.data || builderRes.data);
       }
 
@@ -177,7 +178,7 @@ const handleAppointmentSubmit = async (e) => {
       message: appointmentData.message || "I am interested in this property"
     };
 
-    const res = await axios.post("http://localhost:5000/api/appointments/bookAppointment", payload);
+    const res = await axios.post("${API}/api/appointments/bookAppointment", payload);
     
     if (res.data.success) {
       alert("Appointment Scheduled Successfully!");
@@ -211,7 +212,7 @@ const handleAppointmentSubmit = async (e) => {
 
       if (!phone && savedUser.id) {
         try {
-          const res = await axios.get(`http://localhost:5000/api/auth/user/${savedUser.id}`);
+          const res = await axios.get(`${API}/api/auth/user/${savedUser.id}`);
           if (res.data.success && res.data.user) {
             phone = res.data.user.phone || phone;
             const updatedUser = { ...savedUser, phone: res.data.user.phone };
@@ -268,7 +269,7 @@ const handleAppointmentSubmit = async (e) => {
                 try {
                   const token = localStorage.getItem("adminToken"); 
                   if (!token) { alert("Admin token not found. Please login again."); return; }
-                  await axios.delete(`http://localhost:5000/api/property/delete/${id}`, { headers: { "Authorization": `Bearer ${token}` } }); 
+                  await axios.delete(`${API}/api/property/delete/${id}`, { headers: { "Authorization": `Bearer ${token}` } }); 
                   alert("Property deleted successfully");
                   navigate("/my-properties"); 
                 } catch (err) {
@@ -923,7 +924,7 @@ const ReviewSection = ({ propertyId, currentUser }) => {
 
   const fetchReviews = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/reviews/property/${propertyId}`);
+      const res = await axios.get(`${API}/api/reviews/property/${propertyId}`);
       if (res.data.success) setReviews(res.data.data);
     } catch (err) { console.error("Error fetching reviews", err); }
   };
@@ -937,7 +938,7 @@ const ReviewSection = ({ propertyId, currentUser }) => {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      await axios.post("http://localhost:5000/api/reviews/add", {
+      await axios.post("${API}/api/reviews/add", {
         property: propertyId,
         user: currentUser._id || currentUser.id,
         userName: currentUser.name || "Anonymous",
@@ -960,7 +961,7 @@ const ReviewSection = ({ propertyId, currentUser }) => {
     if (window.confirm("Review delete karaycha aahe?")) {
       try {
         const token = localStorage.getItem("token");
-        await axios.delete(`http://localhost:5000/api/reviews/delete/${id}`, {
+        await axios.delete(`${API}/api/reviews/delete/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }

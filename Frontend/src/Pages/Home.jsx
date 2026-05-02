@@ -9,7 +9,8 @@ import {
 import { PropertyCard } from "../Components/PropertyCard"; 
 import BuilderProfileCard from "../Components/builderProfileCard";
 import AIChatBox from "../Components/AIChatBox";
- 
+import API from "./api"; 
+
 const PropertySlider = ({ children, isEmpty }) => {
   const scrollRef = useRef(null);
   const scroll = (direction) => {
@@ -77,7 +78,7 @@ export default function HomePage() {
     const fetchProperties = async () => {
       try {
         setLoading(true);
-        const response = await axios.get("http://localhost:5000/api/property/allProperties"); 
+        const response = await axios.get(`${API}/api/property/allProperties`);
         setProperties(response.data.data || response.data || []);
       } catch (error) { console.error(error); } 
       finally { setLoading(false); }
@@ -88,7 +89,7 @@ export default function HomePage() {
   useEffect(() => {
     const fetchBuilders = async () => {
       try {
-        const response = await axios.get("http://localhost:5000/api/admin/builders");
+        const response = await axios.get("${API}/api/admin/builders");
         if (response.data.success) {
           setBuilders(response.data.data);
         }
@@ -240,7 +241,7 @@ useEffect(() => {
         properties.map(async (prop) => {
           try {
             // Pratyek property sathi reviews cha call (Jasa tu TopRatedInCity madhye kela aahe)
-            const revRes = await axios.get(`http://localhost:5000/api/reviews/property/${prop._id}`);
+            const revRes = await axios.get(`${API}/api/reviews/property/${prop._id}`);
             const reviews = revRes.data.data || [];
             const avg = reviews.length > 0 
               ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) 

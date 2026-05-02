@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { Send, Bot, Sparkles, Loader2, X, CheckCircle2, TrendingUp, Stars } from "lucide-react";
 import axios from "axios";
 import { PropertyCard } from "./PropertyCard";
+import API from "./api";
 
 export default function AIChatBox({ onClose }) {
   const [input, setInput] = useState("");
@@ -18,7 +19,7 @@ export default function AIChatBox({ onClose }) {
     setLoading(true);
     setAiResults([]);
     try {
-      const res = await axios.post("http://localhost:5000/api/ai/search", { prompt: input });
+      const res = await axios.post(`${API}/api/ai/search`, { prompt: input });
       if (res.data.success) {
         setAiResults(res.data.properties || []);
       }

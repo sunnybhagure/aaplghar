@@ -7,6 +7,7 @@ import {
   Edit3, Trash2, CheckCircle2, ChevronRight, Lock, Loader2, Filter,
   Upload, PlusCircle, Eye, ShieldCheck, X, Check, AlertTriangle
 } from "lucide-react";
+import API from "./api";
 
 const BuilderDashboard = () => {
   const navigate = useNavigate();
@@ -75,7 +76,7 @@ useEffect(() => {
             const fetchReviews = async () => {
                 setLoadingReviews(true);
                 try {
-                    const res = await axios.get(`http://localhost:5000/api/reviews/builder/${builderId}`);
+                    const res = await axios.get(`${API}/api/reviews/builder/${builderId}`);
                     if (res.data.success) {
                         setReviewData(res.data);
                     }
@@ -139,7 +140,7 @@ useEffect(() => {
       }
       try {
         setLoading(true);
-        const res = await axios.get(`http://localhost:5000/api/property/builder/${builderId}`);
+        const res = await axios.get(`${API}/api/property/builder/${builderId}`);
         const data = res.data.data || res.data || [];
         setProperties(data);
 
@@ -151,7 +152,7 @@ useEffect(() => {
           setStats({ total: data.length, cities: uniqueCities });
         } else {
           // If no properties, fetch builder data directly from admin route if needed
-          const adminRes = await axios.get(`http://localhost:5000/api/admin/adminprofile/${builderId}`);
+          const adminRes = await axios.get(`${API}/api/admin/adminprofile/${builderId}`);
           if(adminRes.data.success) setBuilderData(adminRes.data.data);
         }
       } catch (err) {
@@ -168,7 +169,7 @@ useEffect(() => {
     if (activeTab === "profile") {
       const builderId = getBuilderId();
       if (builderId) {
-        axios.get(`http://localhost:5000/api/admin/adminprofile/${builderId}`)
+        axios.get(`${API}/api/admin/adminprofile/${builderId}`)
           .then(res => {
             if (res.data.success) {
               setBuilderData(res.data.data);
@@ -185,7 +186,7 @@ useEffect(() => {
     if (activeTab === "appointments") {
       const builderId = getBuilderId();
       if (builderId) {
-        axios.get(`http://localhost:5000/api/appointments/builder/${builderId}`)
+        axios.get(`${API}/api/appointments/builder/${builderId}`)
           .then(res => {
             setAppointments(res.data || []);
           })
@@ -241,7 +242,7 @@ useEffect(() => {
     }
 
     try {
-      const res = await axios.post("http://localhost:5000/api/admin/verify-password", {
+      const res = await axios.post("${API}/api/admin/verify-password", {
         userId: adminId,
         password: passwordInput
       });
@@ -260,14 +261,14 @@ useEffect(() => {
   const handleSaveAll = async () => {
     try {
       const builderId = getBuilderId();
-      await axios.put(`http://localhost:5000/api/admin/adminprofile/${builderId}`, {
+      await axios.put(`${API}/api/admin/adminprofile/${builderId}`, {
         ...builderData,
         faqs: qaList
       });
       setIsEditable(false);
       
       // Fetch fresh data from database after save
-      const freshDataRes = await axios.get(`http://localhost:5000/api/admin/adminprofile/${builderId}`);
+      const freshDataRes = await axios.get(`${API}/api/admin/adminprofile/${builderId}`);
       if (freshDataRes.data.success) {
         setBuilderData(freshDataRes.data.data);
         setQaList(freshDataRes.data.data.faqs || []);
@@ -286,7 +287,7 @@ useEffect(() => {
   }
 
   try {
-    const res = await axios.put(`http://localhost:5000/api/appointments/${apptId}/builder-update`, {
+    const res = await axios.put(`${API}/api/appointments/${apptId}/builder-update`, {
       status: newStatus,
       actionReason: reason, // Database मध्ये save होईल
       updatedAt: new Date()
@@ -299,7 +300,7 @@ useEffect(() => {
       // Refresh appointments list
       const builderId = getBuilderId();
       if (builderId) {
-        const refreshRes = await axios.get(`http://localhost:5000/api/appointments/builder/${builderId}`);
+        const refreshRes = await axios.get(`${API}/api/appointments/builder/${builderId}`);
         setAppointments(refreshRes.data || []);
       }
     }
@@ -315,11 +316,11 @@ useEffect(() => {
     try {
       const rescheduledAppts = appointments.filter(a => a.status === 'rescheduled' && a.isNewForBuilder);
       for (const appt of rescheduledAppts) {
-        await axios.put(`http://localhost:5000/api/appointments/${appt._id}/mark-read-builder`);
+        await axios.put(`${API}/api/appointments/${appt._id}/mark-read-builder`);
       }
       
       // Refresh appointments
-      const refreshRes = await axios.get(`http://localhost:5000/api/appointments/builder/${builderId}`);
+      const refreshRes = await axios.get(`${API}/api/appointments/builder/${builderId}`);
       setAppointments(refreshRes.data || []);
     } catch (err) {
       console.error("Error marking appointments as read:", err);
@@ -330,7 +331,7 @@ useEffect(() => {
   const handleRefreshProfile = async () => {
     try {
       const builderId = getBuilderId();
-      const res = await axios.get(`http://localhost:5000/api/admin/adminprofile/${builderId}`);
+      const res = await axios.get(`${API}/api/admin/adminprofile/${builderId}`);
       if (res.data.success) {
         setBuilderData(res.data.data);
         setQaList(res.data.data.faqs || []);
@@ -367,7 +368,7 @@ useEffect(() => {
     }
 
     try {
-        const res = await axios.post("http://localhost:5000/api/admin/change-password", {
+        const res = await axios.post("${API}/api/admin/change-password", {
             userId: userId,
             oldPassword: passData.oldPassword,
             newPassword: passData.newPassword
@@ -399,7 +400,7 @@ useEffect(() => {
       formData.append("builderName", builderData?.companyName || "Builder");
 
       const res = await axios.post(
-        "http://localhost:5000/api/admin/upload-cover-image",
+        "${API}/api/admin/upload-cover-image",
         formData,
         {
           headers: { "Content-Type": "multipart/form-data" }
@@ -441,7 +442,7 @@ useEffect(() => {
       const builderId = getBuilderId();
       const updatedFaqs = [newQ, ...qaList];
       
-      await axios.put(`http://localhost:5000/api/admin/adminprofile/${builderId}`, {
+      await axios.put(`${API}/api/admin/adminprofile/${builderId}`, {
         faqs: updatedFaqs
       });
       
@@ -464,7 +465,7 @@ useEffect(() => {
       const builderId = getBuilderId();
       const updatedFaqs = qaList.filter((_, i) => i !== index);
       
-      await axios.put(`http://localhost:5000/api/admin/adminprofile/${builderId}`, {
+      await axios.put(`${API}/api/admin/adminprofile/${builderId}`, {
         faqs: updatedFaqs
       });
       
@@ -489,7 +490,7 @@ useEffect(() => {
     e.stopPropagation();
     if (window.confirm("Are you sure you want to delete this property?")) {
       try {
-        await axios.delete(`http://localhost:5000/api/property/${id}`);
+        await axios.delete(`${API}/api/property/${id}`);
         setProperties(properties.filter(p => p._id !== id));
       } catch (err) {
         alert("Failed to delete property.");

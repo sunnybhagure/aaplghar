@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import API from "./api";
 
 const BuilderProjectCount = ({ builderId }) => {
   const [count, setCount] = useState(0);
@@ -9,7 +10,7 @@ const BuilderProjectCount = ({ builderId }) => {
       if (!builderId) return;
       try {
         
-        const res = await axios.get(`http://localhost:5000/api/admin/builder-details/${builderId}`);
+        const res = await axios.get(`${API}/api/admin/builder-details/${builderId}`);
         
         
         if (res.data.success && res.data.data.stats) {
