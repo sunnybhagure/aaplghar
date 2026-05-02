@@ -8,26 +8,26 @@ const cloudinary = require("../config/cloudinary");
 const parseCloudinaryPublicId = (url) => {
   if (!url || typeof url !== "string") return null;
   
-  // URL madhun 'upload/v12345/' nantar cha purna bhag extract karel
+  
   const parts = url.split('/');
   const uploadIndex = parts.indexOf('upload');
   if (uploadIndex === -1) return null;
 
-  // v12345 (version number) asel tar tyala skip kara
+  
   const startIndex = parts[uploadIndex + 1].startsWith('v') ? uploadIndex + 2 : uploadIndex + 1;
   
   const publicIdWithExt = parts.slice(startIndex).join('/');
-  return publicIdWithExt.split('.')[0]; // extension (.jpg) kadhun taka
+  return publicIdWithExt.split('.')[0]; 
 };
 
 const deleteCloudinaryResource = async (url) => {
   const publicId = parseCloudinaryPublicId(url);
   if (!publicId) return null;
   
-  // Console log karun bagha publicId kay yet aahe
+
   console.log("Attempting to delete Public ID:", publicId);
 
-  // 'image' resource type specify kara, jar images astil tar
+  
   return cloudinary.uploader.destroy(publicId, { resource_type: "image" });
 };
 
@@ -112,7 +112,7 @@ exports.addProperty = async (req, res) => {
         societyPlan: getFile('societyPlan')?.path || body.societyPlan || "",
       },
       builder: req.admin?._id,
-      // Status formatting
+      
       status: body.status?.toLowerCase().replace(/\s/g, "_"),
     };
 
@@ -206,7 +206,7 @@ planImage: getFile(`plan_${sub}_${bhk}_${idx}`)?.path || v.planImage || ""      
 // Example Route in Backend
 exports.getAllProperties = async (req, res) => {
   try {
-    // .populate vapra mhanje builder cha data (name, etc.) sobat yeil
+    
     const properties = await Property.find().populate("builder", "name email mobile"); 
     
     res.json(properties);
@@ -254,7 +254,7 @@ exports.getPropertiesByBuilder = async (req, res) => {
             });
         }
 
-        // Find all properties for this builder
+        
         const properties = await Property.find({ builder: builderId }).populate({
             path: "builder",
             model: "Admin",
@@ -270,7 +270,7 @@ exports.getPropertiesByBuilder = async (req, res) => {
             });
         }
 
-        // यशस्वी रिस्पॉन्स
+        
         res.status(200).json({ 
             success: true, 
             data: properties 
@@ -300,7 +300,7 @@ exports.updateProperty = async (req, res) => {
     const body = req.body;
     const allFiles = req.files || [];
 
-    // 1. Juni property find kara (Persistence sathi)
+    
     const oldProperty = await Property.findById(id);
     if (!oldProperty) {
       return res.status(404).json({ success: false, message: "Property not found" });
@@ -310,7 +310,7 @@ exports.updateProperty = async (req, res) => {
     const getFile = (fieldname) => allFiles.find(f => f.fieldname === fieldname);
     const getFiles = (fieldname) => allFiles.filter(f => f.fieldname === fieldname).map(f => f.path);
     const parseData = (data) => {
-      if (!data) return null; // Null return kara jene karun logic check karta yeil
+      if (!data) return null; 
       try {
         return typeof data === 'string' ? JSON.parse(data) : data;
       } catch (e) { return null; }
@@ -318,7 +318,7 @@ exports.updateProperty = async (req, res) => {
 
     const config = parseData(body.configData) || {};
 
-    // 2. Updated Data Object (Persistent Logic: Navin data || Juna data)
+    
     let updatedData = {
       title: body.title || oldProperty.title,
       location: { 
@@ -327,16 +327,16 @@ exports.updateProperty = async (req, res) => {
       },
       description: body.description || oldProperty.description,
       
-      // Navin Add kelelya Fields
+      
       possessionDate: body.possessionDate || oldProperty.possessionDate,
-      projectArea: body.projectArea || oldProperty.projectArea, // e.g., "5 Acres"
+      projectArea: body.projectArea || oldProperty.projectArea, 
       
       
       // Arrays/Objects parsing
       highlights: parseData(body.highlights) || oldProperty.highlights,
       specification: parseData(body.specification) || oldProperty.specification,
       amenities: parseData(body.amenities) || oldProperty.amenities,
-      facilities: parseData(body.facilities) || oldProperty.facilities, // Navin Field
+      facilities: parseData(body.facilities) || oldProperty.facilities, 
       nearbyLocalities: parseData(body.localities) || oldProperty.nearbyLocalities,
       questions: parseData(body.questions) || oldProperty.questions,
       
@@ -450,17 +450,16 @@ exports.deleteProperty = async (req, res) => {
             return res.status(404).json({ success: false, message: "Property not found" });
         }
 
-        // 1. Sarv Images gola kara
+       
         const urls = collectPropertyMediaUrls(property);
         
-        // 2. Pahile sarv individual files delete kara (Garjeche aahe)
+       
         if (urls.length > 0) {
             await Promise.allSettled(urls.map((url) => deleteCloudinaryResource(url)));
             console.log("All individual images deleted from Cloudinary");
         }
 
-        // 3. Aata to Specific Property Folder delete kara
-        // Multer madhlya logic pramane title clean kara
+        
         if (property.title) {
             const propertyTitle = property.title
                 .replace(/[^\w\s]/gi, '')
@@ -469,16 +468,16 @@ exports.deleteProperty = async (req, res) => {
             const folderPath = `aaplghar/properties/${propertyTitle}`;
 
             try {
-                // Cloudinary API vaprun folder delete karne
+                
                 await cloudinary.api.delete_folder(folderPath);
                 console.log(`Folder deleted: ${folderPath}`);
             } catch (folderErr) {
-                // Jar folder madhe ajun kahi files astil tar error yeu shakto, to catch kara
+                
                 console.warn("Folder delete error (May not be empty):", folderErr.message);
             }
         }
 
-        // 4. Database madhun delete kara
+       
         await Property.findByIdAndDelete(id);
 
         res.status(200).json({ success: true, message: "Property and its folder deleted successfully" });
@@ -488,10 +487,10 @@ exports.deleteProperty = async (req, res) => {
     }
 };
 
-// Get Properties by City (Dedicated Controller)
+
 exports.getPropertiesByCity = async (req, res) => {
     try {
-        const { city } = req.query; // URL madhun city ghyaychi (?city=Nashik)
+        const { city } = req.query; 
 
         if (!city) {
             return res.status(400).json({ 
@@ -500,8 +499,7 @@ exports.getPropertiesByCity = async (req, res) => {
             });
         }
 
-        // Location object madhli city filter karne
-        // $regex: 'i' mule capital/small letter cha farak padnar nahi
+       
         const properties = await Property.find({
             "location.city": { $regex: new RegExp(city, 'i') }
         }).populate("builder", "name email mobile companyName");
@@ -530,22 +528,22 @@ exports.getBuildersByCity = async (req, res) => {
             return res.status(400).json({ success: false, message: "City name required" });
         }
 
-        // 1. City nusar properties find kara ani builder populate kara
+        
         const properties = await Property.find({
             "location.city": { $regex: new RegExp(city, 'i') }
         }).populate("builder");
 
-        // 2. Map vaprun unique builders kadha (JS logic ne)
+        
         const buildersMap = new Map();
 
         properties.forEach(prop => {
             if (prop.builder && prop.builder._id) {
-                // Key mhanun ID vaparlyamule duplicate builders remove hotil
+                
                 buildersMap.set(prop.builder._id.toString(), prop.builder);
             }
         });
 
-        // Map la array madhe convert kara
+       
         const uniqueBuilders = Array.from(buildersMap.values());
 
         res.status(200).json({
