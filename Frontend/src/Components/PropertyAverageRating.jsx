@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import API from "./api";
+import API from "../aap";
 
 const PropertyAverageRating = ({ propertyId }) => {
   const [avgRating, setAvgRating] = useState("0.0");

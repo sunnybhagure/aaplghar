@@ -9,7 +9,7 @@ import {
 import { PropertyCard } from "../Components/PropertyCard"; 
 import BuilderProfileCard from "../Components/builderProfileCard";
 import AIChatBox from "../Components/AIChatBox";
-import API from "./api"; 
+import API from "../aap"; 
 
 const PropertySlider = ({ children, isEmpty }) => {
   const scrollRef = useRef(null);

@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import axios from "axios";
-import { PropertyCard } from "../Components/propertyCard";
+import { PropertyCard } from "../Components/PropertyCard";
 import { 
   Loader2, CheckCircle, Timer, LayoutGrid, 
   Building2, ChevronLeft, ChevronRight, Search, Sparkles
 } from "lucide-react";
-import API from "./api";
+import API from "../aap";
 
 const PropertySlider = ({ children }) => {
   const scrollRef = useRef(null);

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import { User, Mail, Phone, Lock, Loader2, ArrowRight, Home, CheckCircle, Star, Users } from "lucide-react"
-import API from "./api";
+import API from "../aap";
 
 const RegisterPage = () => {
   const [formData, setFormData] = useState({ name: "", email: "", password: "", phone: "" })

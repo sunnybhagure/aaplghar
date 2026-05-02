@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { PropertyCard } from './PropertyCard'; 
-import API from "./api";
+import API from "../aap";
 
 // propertyType navacha prop add kela aahe
 const TopRatedInCity = ({ city, currentPropertyId, propertyType }) => {

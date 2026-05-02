@@ -6,7 +6,7 @@ import {
   ArrowLeft, ClipboardList, MapPin, X, Trash2, PlusCircle, Loader2, ImageIcon, FileText 
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
-import API from "./api";
+import API from "../aap";
 
 // --- PRICE CONVERTER LOGIC ---
 const formatPrice = (value) => {

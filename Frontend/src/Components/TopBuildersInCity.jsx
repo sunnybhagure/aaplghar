@@ -3,7 +3,7 @@ import axios from 'axios';
 import { ChevronLeft, ChevronRight, Trophy } from 'lucide-react';
 import BuilderProfileCard from './builderProfileCard';
 import BuilderCitiesCount from './BuilderCitiesCount';
-import API from "./api";
+import API from "../aap";
 
 
 

@@ -6,7 +6,7 @@ import {
   Clock, ChevronRight, Loader2, Lock, ShieldCheck, Info,
   Star, Trash2, Building2, Home
 } from "lucide-react";
-import API from "./api";
+import API from "../aap";
 
 const UserProfile = () => {
   const navigate = useNavigate();

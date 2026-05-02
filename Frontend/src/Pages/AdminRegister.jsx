@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import { ShieldPlus, User, Building2, Mail, MapPin, Phone, Lock, Loader2, ArrowLeft, ChevronRight } from "lucide-react"
-import API from "./api";
+import API from "../aap";
 
 const AdminRegister = () => {
   const [formData, setFormData] = useState({

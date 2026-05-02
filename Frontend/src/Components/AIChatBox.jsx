@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { Send, Bot, Sparkles, Loader2, X, CheckCircle2, TrendingUp, Stars } from "lucide-react";
 import axios from "axios";
 import { PropertyCard } from "./PropertyCard";
-import API from "./api";
+import API from "../aap";
 
 export default function AIChatBox({ onClose }) {
   const [input, setInput] = useState("");

@@ -7,7 +7,7 @@ import {
   Home, Building, LandPlot, Trash2, Layers
 } from 'lucide-react';
 import BuilderAverageRating from '../Components/BuilderAverageRating';
-import API from "./api";
+import API from "../aap";
 
 const BuilderDetails = () => {
   const { id } = useParams();
