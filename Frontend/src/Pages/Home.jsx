@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronRight, Loader2, Sparkles, Check, X
 } from "lucide-react";
 
-import { PropertyCard } from "../Components/propertyCard"; 
+import { PropertyCard } from "../Components/PropertyCard"; 
 import BuilderProfileCard from "../Components/builderProfileCard";
 import AIChatBox from "../Components/AIChatBox";
 import API from "./api"; 
