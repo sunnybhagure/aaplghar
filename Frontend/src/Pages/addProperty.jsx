@@ -217,11 +217,13 @@ const [questionsList, setQuestionsList] = useState([]);
       if (data.gallery) Array.from(data.gallery).forEach(file => formData.append("gallery", file));
 
       const token = localStorage.getItem("adminToken");
-      const res = await axios.post("${API}/api/property/addProperty", formData, {
+      const res = await axios.post(`${API}/api/property/addProperty`, formData, {
         headers: { "Content-Type": "multipart/form-data", "Authorization": `Bearer ${token}` },
       });
-      if(res.data.success) {         showAlert("success", "Property Added Successfully!")
-; navigate("/my-properties"); }
+      if(res.data.success) { 
+  alert("Property Added Successfully!"); 
+  navigate("/my-properties"); 
+}
     } catch (error) { showAlert("error", "Server connection failed"); }
   };
 
