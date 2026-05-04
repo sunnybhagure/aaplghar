@@ -15,6 +15,7 @@ import UpdateProperty from './Pages/updateProperty.jsx'
 import UserProfile from './Pages/userProfile.jsx'
 import BuilderDetails from './Pages/builderDetails.jsx'
 import Alert from './Components/alert.jsx'
+import Footer from './Components/Footer'
 
 function App() {
   
@@ -57,6 +58,7 @@ const [flash, setFlash] = useState(null);
        
 
       </Routes>
+      <Footer />
     </Router>
     </>
   )

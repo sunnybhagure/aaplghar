@@ -209,7 +209,7 @@ exports.getAllProperties = async (req, res) => {
     
     const properties = await Property.find().populate("builder", "name email mobile"); 
     
-    res.json(properties);
+    res.json({ success: true, data: properties });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

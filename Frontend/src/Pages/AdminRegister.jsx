@@ -28,7 +28,7 @@ const AdminRegister = () => {
     e.preventDefault()
     setLoading(true)
     try {
-      const res = await fetch("${API}/api/admin/register", {
+      const res = await fetch(`${API}/api/admin/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData)

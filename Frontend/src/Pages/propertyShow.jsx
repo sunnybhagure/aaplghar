@@ -121,6 +121,8 @@ useEffect(() => {
       }
 
       setLoading(false);
+      // Scroll to top when page loads
+      window.scrollTo(0, 0);
     } catch (err) {
       console.error(err);
       setLoading(false);
@@ -282,51 +284,79 @@ const handleAppointmentSubmit = async (e) => {
       )}
       
       {/* Header */}
-      <div className="max-w-6xl mx-auto px-4 pt-8 pb-4 flex flex-col md:flex-row justify-between items-start md:items-end">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2 text-slate-400 font-bold text-[11px] uppercase tracking-widest">
+      <div className="max-w-6xl mx-auto px-4 pt-6 pb-4 md:pb-0 flex flex-col md:flex-row justify-between gap-6">
+        {/* Left Side - Title, Location, Status */}
+        <div className="flex flex-col gap-3 flex-1">
+          <div className="flex items-center gap-2 text-slate-400 font-bold text-[11px] uppercase tracking-widest flex-wrap">
             <User className="w-3.5 h-3.5" /> {property.builder?.name || "Aaple Ghar Partner"} | <Calendar className="w-3.5 h-3.5" /> {new Date(property.createdAt).toLocaleDateString()}
           </div>
-          <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight leading-none">{property.title}</h1>
+          <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight leading-tight">{property.title}</h1>
           
-          <div className="flex items-center gap-2 mt-1">
-            <MapPin className="w-3.5 h-3.5 text-rose-500" />
+          <div className="flex items-center gap-2">
+            <MapPin className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />
             <span className="font-bold text-[13px] text-slate-500">{property.location?.area}, {property.location?.city}</span>
           </div>
-        </div>
-        <div className="mt-6 md:mt-0 flex items-end gap-8">
-          <div className="text-right">
-            <PropertyAverageRating propertyId={id} />
-
-             <p className={`text-[12px] font-black uppercase tracking-widest ${property.status === 'ready' ? 'text-emerald-500' : 'text-orange-500'}`}>{property.status?.replace('_', ' ')}</p>
-             {property.status !== 'ready' && property.possessionDate && <p className="text-[10px] font-black text-blue-600 uppercase mt-0.5">Possession-Date: {property.possessionDate}</p>}
+          
+          <div className="mt-2">
+            <p className={`text-[12px] font-black uppercase tracking-widest ${property.status === 'ready' ? 'text-emerald-500' : 'text-orange-500'}`}>{property.status?.replace('_', ' ')}</p>
+            {property.status !== 'ready' && property.possessionDate && <p className="text-[10px] font-black text-blue-600 uppercase mt-1">Possession: {property.possessionDate}</p>}
           </div>
-          <div className="h-10 w-[1px] bg-slate-200 hidden md:block"></div>
-          <div className="text-right">
-             <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Project Area</p>
-             <p className="text-xl font-black text-slate-900 leading-none">{property.projectArea || "N/A"} <span className="text-[10px]">Acres</span></p>
+        </div>
+        
+        {/* Right Side - Rating & Project Area */}
+        <div className="flex flex-row md:flex-col gap-4">
+          <div>
+            <PropertyAverageRating propertyId={id} />
+          </div>
+          <div className="md:text-right">
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Project Area</p>
+            <p className="text-lg font-black text-slate-900">{property.projectArea || "N/A"} <span className="text-[10px]">Acres</span></p>
           </div>
         </div>
       </div>
 
       {/* Gallery Section */}
-      <div className="max-w-6xl mx-auto px-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-          <div className="md:col-span-3 aspect-video bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+      <div className="max-w-6xl mx-auto px-4 mb-6 mt-4 md:mt-0">
+        {/* Mobile: Horizontal scroll gallery */}
+        <div className="md:hidden">
+          <div className="aspect-video bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 shadow-sm mb-3">
             {activeImg ? <img src={activeImg} className="w-full h-full object-cover transition-opacity duration-300" alt="Property" /> : <div className="w-full h-full flex items-center justify-center">Loading...</div>}
           </div>
-          <div className="hidden md:flex flex-col gap-2 h-full">
-            <div className="flex-1 rounded-xl bg-slate-100 overflow-hidden border border-slate-200">
-                {allMedia[0] && <img src={allMedia[0]} onClick={() => setActiveImg(allMedia[0])} className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-all" />}
+          {allMedia.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
+              {allMedia.map((img, idx) => (
+                <div key={idx} className="relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 border-slate-200 cursor-pointer" onClick={() => setActiveImg(img)}>
+                  <img src={img} className="w-full h-full object-cover" alt={`Thumbnail ${idx}`} />
+                  {idx === 1 && allMedia.length > 2 && (
+                    <div className="absolute inset-0 bg-slate-900/80 flex items-center justify-center text-white font-black text-xs">
+                      +{allMedia.length - 2}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-            <div className="flex-1 rounded-xl bg-slate-100 overflow-hidden border border-slate-200 relative">
+          )}
+        </div>
+        
+        {/* Desktop: Original grid layout */}
+        <div className="hidden md:block">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+            <div className="md:col-span-3 aspect-video bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+              {activeImg ? <img src={activeImg} className="w-full h-full object-cover transition-opacity duration-300" alt="Property" /> : <div className="w-full h-full flex items-center justify-center">Loading...</div>}
+            </div>
+            <div className="flex flex-col gap-2 h-full">
+              <div className="flex-1 rounded-xl bg-slate-100 overflow-hidden border border-slate-200">
+                {allMedia[0] && <img src={allMedia[0]} onClick={() => setActiveImg(allMedia[0])} className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-all" />}
+              </div>
+              <div className="flex-1 rounded-xl bg-slate-100 overflow-hidden border border-slate-200 relative">
                 {allMedia[1] && <img src={allMedia[1]} onClick={() => setActiveImg(allMedia[1])} className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-all" />}
                 {allMedia.length > 2 && (
                   <div onClick={() => setShowAllMedia(true)} className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center text-white cursor-pointer hover:bg-slate-800 transition-all">
-                     <span className="text-xl font-black">+{allMedia.length - 2}</span>
-                     <span className="text-[8px] font-bold uppercase tracking-widest">Photos</span>
+                    <span className="text-xl font-black">+{allMedia.length - 2}</span>
+                    <span className="text-[8px] font-bold uppercase tracking-widest">Photos</span>
                   </div>
                 )}
+              </div>
             </div>
           </div>
         </div>
