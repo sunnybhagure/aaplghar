@@ -159,7 +159,6 @@ router.put('/userprofile/:id', async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Current password is incorrect.' });
     }
 
-    // डेटा अपडेट करा
     if (name) user.name = name;
     if (phone) user.phone = phone;
     
@@ -182,7 +181,7 @@ router.put('/userprofile/:id', async (req, res, next) => {
 
   } catch (error) {
     console.error('Update Error:', error);
-    // जर इथे 'next(error)' असेल तर ते काढून टाका किंवा वर 'next' डिफाइन करा
+    
     res.status(500).json({ success: false, message: 'Server Error' });
   }
 });
