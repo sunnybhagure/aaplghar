@@ -3,7 +3,7 @@ const mongoose = require('mongoose'); // वरती इम्पोर्ट �
 
 exports.bookAppointment = async (req, res) => {
     try {
-        // Frontend kadun yenara data (req.body)
+        
         const { property, builder, user, userName, userPhone, date, timeSlot, variant, message } = req.body;
 
         // Validation
@@ -12,13 +12,13 @@ exports.bookAppointment = async (req, res) => {
         }
 
         const newAppointment = new Appointment({
-            property,    // Schema madhye 'property' aahe
-            builder,     // Schema madhye 'builder' aahe
-            user,        // Schema madhye 'user' aahe
-            userName,    // Schema madhye 'userName' aahe
-            userPhone,   // Schema madhye 'userPhone' aahe
+            property,    
+            builder,     
+            user,       
+            userName,    
+            userPhone,  
             date,
-            timeSlot,    // Schema madhye 'timeSlot' aahe
+            timeSlot,   
             variant,
             message
         });
@@ -32,7 +32,7 @@ exports.bookAppointment = async (req, res) => {
     }
 };
 
-// 1. User Side: स्वतःच्या सर्व अपॉइंटमेंट पाहण्यासाठी (Add this!)
+
 
 
 exports.getUserAppointments = async (req, res) => {
@@ -40,7 +40,7 @@ exports.getUserAppointments = async (req, res) => {
         const { userId } = req.params;
         console.log("Fetching appointments for User ID:", userId);
 
-        // find() मध्ये डायरेक्ट userId वापरा
+  
         const appointments = await Appointment.find({ user: userId })
             .populate({
                 path: 'property',
@@ -54,7 +54,7 @@ exports.getUserAppointments = async (req, res) => {
 
         console.log("Database response length:", appointments.length);
         
-        // जर डेटा सापडला तर तो पाठवा, रिकामा असला तरी रिकामी array पाठवा
+      
         res.status(200).json(appointments);
     } catch (error) {
         console.error("Error in getUserAppointments:", error);
@@ -62,7 +62,6 @@ exports.getUserAppointments = async (req, res) => {
     }
 };
 
-// Builder Dashboard sathi list
 exports.getBuilderAppointments = async (req, res) => {
     try {
         const appointments = await Appointment.find({ builder: req.params.builderId })
@@ -74,21 +73,21 @@ exports.getBuilderAppointments = async (req, res) => {
                 path: 'builder',
                 select: 'companyName email phone'
             })
-            .sort({ date: 1, timeSlot: 1 }); // Sort by date and time ascending
+            .sort({ date: 1, timeSlot: 1 });
         res.json(appointments);
     } catch (error) {
         res.status(500).json({ message: "Error fetching appointments" });
     }
 };
 
-// 4. Builder Side: Update Status with Reason (Enhanced)
+
 exports.builderUpdateStatus = async (req, res) => {
     try {
         const { status, actionReason, date, timeSlot } = req.body;
         const updateData = {
             status,
             actionReason,
-            isNewForUser: true, // Notify user
+            isNewForUser: true,
             updatedAt: new Date()
         };
 
@@ -123,7 +122,7 @@ exports.builderUpdateStatus = async (req, res) => {
 // 5. Mark Notifications as Read
 exports.markAsRead = async (req, res) => {
     try {
-        const { forUser } = req.body; // true for user, false for builder
+        const { forUser } = req.body; 
         const updateField = forUser ? 'isNewForUser' : 'isNewForBuilder';
 
         await Appointment.findByIdAndUpdate(req.params.id, { [updateField]: false });
@@ -133,7 +132,7 @@ exports.markAsRead = async (req, res) => {
     }
 };
 
-// Mark as read for user
+
 exports.markAsReadUser = async (req, res) => {
     try {
         await Appointment.findByIdAndUpdate(req.params.id, { isNewForUser: false });
@@ -143,7 +142,7 @@ exports.markAsReadUser = async (req, res) => {
     }
 };
 
-// Mark as read for builder
+
 exports.markAsReadBuilder = async (req, res) => {
     try {
         await Appointment.findByIdAndUpdate(req.params.id, { isNewForBuilder: false });
@@ -153,7 +152,7 @@ exports.markAsReadBuilder = async (req, res) => {
     }
 };
 
-// 2. User Side: Reschedule Appointment (With 24h Check)
+
 exports.userReschedule = async (req, res) => {
     try {
         const { date, timeSlot } = req.body;
@@ -161,7 +160,7 @@ exports.userReschedule = async (req, res) => {
 
         if (!appt) return res.status(404).json({ message: "Appointment not found" });
 
-        // 24 Hour Logic Check
+        
         const appointmentDateTime = new Date(`${appt.date} ${appt.timeSlot}`);
         const now = new Date();
         const diffInHours = (appointmentDateTime - now) / (1000 * 60 * 60);
@@ -170,7 +169,7 @@ exports.userReschedule = async (req, res) => {
             return res.status(400).json({ message: "Cannot reschedule within 24 hours of appointment" });
         }
 
-        // Store old values
+       
         const oldDate = appt.date;
         const oldTimeSlot = appt.timeSlot;
 
@@ -182,7 +181,7 @@ exports.userReschedule = async (req, res) => {
                 status: 'rescheduled',
                 oldDate,
                 oldTimeSlot,
-                isNewForBuilder: true, // Notify builder of reschedule request
+                isNewForBuilder: true,
                 updatedAt: new Date()
             },
             { new: true }
@@ -195,13 +194,13 @@ exports.userReschedule = async (req, res) => {
     }
 };
 
-// 3. User Side: Cancel Appointment
+
 exports.userCancel = async (req, res) => {
     try {
         const appt = await Appointment.findById(req.params.id);
         if (!appt) return res.status(404).json({ message: "Appointment not found" });
 
-        // 24 Hour Logic Check for Cancellation too
+  
         const appointmentDateTime = new Date(`${appt.date} ${appt.timeSlot}`);
         const now = new Date();
         const diffInHours = (appointmentDateTime - now) / (1000 * 60 * 60);
@@ -215,7 +214,7 @@ exports.userCancel = async (req, res) => {
             {
                 userStatus: 'cancelled',
                 status: 'cancelled',
-                isNewForBuilder: true, // Notify builder
+                isNewForBuilder: true, 
                 updatedAt: new Date()
             },
             { new: true }

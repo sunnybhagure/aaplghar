@@ -96,15 +96,14 @@ exports.login = async (req, res) => {
     
     const { email, password } = req.body;
 
-    // ❌ ASAL TAR KADHA: const admin = await Admin.findOne({ email }).lean();
-    // ✅ ASA PAHIJE:
+  
     const admin = await Admin.findOne({ email }); 
+
 
     if (!admin) {
       return res.status(401).json({ success: false, message: "Admin not found" });
     }
 
-    // Aata he function kaam karel
     const isMatch = await admin.matchPassword(password);
     console.log("Password Match Status:", isMatch); // 👈 Debug Log
 
@@ -153,10 +152,10 @@ exports.updateAdminProfile = async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Password field to exclude (shouldn't be updated via this endpoint)
+    
     const { password, _id, role, createdAt, ...otherData } = req.body;
 
-    // Validate that at least some data is being updated
+   
     if (!otherData || Object.keys(otherData).length === 0) {
       return res.status(400).json({ 
         success: false, 
@@ -206,14 +205,14 @@ exports.verifyPassword = async (req, res) => {
   const { userId, password } = req.body;
 
   try {
-    // 1. Admin la ID varun shodha
+    
     const admin = await Admin.findById(userId);
 
     if (!admin) {
       return res.status(404).json({ success: false, message: "Admin not found" });
     }
 
-    // 2. Bcrypt vaprun password compare kara (tujhya schema madhye matchPassword method aahe)
+    
     const isMatch = await bcrypt.compare(password, admin.password);
 
     if (isMatch) {
@@ -232,21 +231,18 @@ exports.changePassword = async (req, res) => {
   try {
     const { userId, oldPassword, newPassword } = req.body;
 
-    // 1. User shodha
+    
     const admin = await Admin.findById(userId);
     if (!admin) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    // 2. Junya password chi padtalni kara
     const isMatch = await admin.matchPassword(oldPassword);
     if (!isMatch) {
       return res.status(401).json({ success: false, message: "Juna password chukicha aahe (Incorrect Old Password)" });
     }
 
-    // 3. Nava password set kara
-    // Ithe apan direct admin.password update karun .save() vapnar 
-    // mhnje schema madhla 'pre-save' hook tyala auto-hash karel.
+    
     admin.password = newPassword;
     await admin.save();
 
@@ -357,7 +353,7 @@ exports.getAllBuilders = async (req, res) => {
     try {
         const builders = await Admin.find({ role: 'builder' }).select("-password").lean();
         
-        // Pratyek builder sathi project count fetch karu
+        
         const buildersWithCount = await Promise.all(builders.map(async (builder) => {
             const projectCount = await Property.countDocuments({ builder: builder._id });
             return { ...builder, totalProjects: projectCount };
@@ -374,19 +370,19 @@ exports.getBuilderDetails = async (req, res) => {
     try {
         const { id } = req.params;
         
-        // 1. Builder Mahiti
+        
         const builder = await Admin.findById(id).select("-password").lean();
         if (!builder) return res.status(404).json({ success: false, message: "Builder not found" });
 
-        // 2. Builder chya srv Properties
+       
         const properties = await Property.find({ builder: id }).sort({ createdAt: -1 });
 
-        // 3. Stats Calculation
+        
         const totalProjects = properties.length;
         const readyPossession = properties.filter(p => p.status === 'ready').length;
         const underConstruction = properties.filter(p => p.status === 'under_construction').length;
         
-        // 4. Unique Cities logic
+        
         const cities = [...new Set(properties.map(p => p.location?.city || p.city))].filter(Boolean);
 
         res.status(200).json({
