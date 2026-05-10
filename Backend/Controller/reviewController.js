@@ -29,7 +29,6 @@ exports.deleteReview = async (req, res) => {
         const review = await Review.findById(req.params.id);
         if (!review) return res.status(404).json({ success: false, error: "Review not found" });
 
-        // युजर मॅच होतोय का ते तपासा
         if (review.user.toString() !== req.user._id.toString()) {
             return res.status(401).json({ success: false, error: "Not authorized to delete this review" });
         }
@@ -41,13 +40,12 @@ exports.deleteReview = async (req, res) => {
     }
 };
 
-// Property Reviews साठी
+// Property Reviews 
 exports.getUserReviews = async (req, res) => {
     try {
         const { userId } = req.params;
         
-        // .populate("property", "title location") चा अर्थ असा की 
-        // propertyId च्या जागी property चा title आणि location डेटा येईल.
+
         const reviews = await Review.find({ user: userId })
             .populate("property", "title location") 
             .sort({ createdAt: -1 });
@@ -66,7 +64,7 @@ exports.getBuilderReviews = async (req, res) => {
     try {
         const { builderId } = req.params;
 
-        // 1. Get all property IDs for this builder
+     
         const properties = await Property.find({ builder: builderId }).select("_id title location images status propertyType price").lean();
         const propertyIds = properties.map(p => p._id);
 
