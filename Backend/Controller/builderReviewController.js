@@ -54,9 +54,7 @@ exports.getUserBuilderReviews = async (req, res) => {
     try {
         const { userId } = req.params;
         
-        // शोधताना "user.id" वापरा कारण तुझ्या स्कीम्यात nested object आहे
         const reviews = await BuilderReview.find({ "user.id": userId })
-            // builderId populate करा Admin model पासून
             .populate("builderId", "name companyName") 
             .sort({ createdAt: -1 });
 
