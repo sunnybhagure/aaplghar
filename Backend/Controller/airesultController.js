@@ -2,7 +2,7 @@ const Property = require("../models/property/propertyMain");
 const Groq = require("groq-sdk");
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-// ✅ Retry logic (Same logic)
+
 const retryWithBackoff = async (fn, maxRetries = 3, delay = 1000) => {
   for (let i = 0; i < maxRetries; i++) {
     try {
@@ -28,7 +28,7 @@ exports.processAIResults = async (filters, originalPrompt) => {
     const properties = await Property.find(query).lean();
     console.log(`[Groq Flow] Found ${properties.length} properties`);
 
-    // --- 1. SCORING LOGIC (Exactly same as your code) ---
+
     const scoredProperties = properties.map(p => {
       let score = 0;
       if (filters.maxPrice && p.price.starting <= filters.maxPrice) score += 10;
@@ -71,7 +71,6 @@ exports.processAIResults = async (filters, originalPrompt) => {
         const aiText = aiAnalysis.choices[0].message.content;
         let rawData = JSON.parse(aiText);
         
-        // ✅ CRITICAL FIX: Ensure we get the array regardless of how Groq wraps it
         let aiPointsData = Array.isArray(rawData) ? rawData : (rawData.properties || rawData.data || Object.values(rawData)[0]);
 
         if (Array.isArray(aiPointsData)) {
@@ -93,7 +92,6 @@ exports.processAIResults = async (filters, originalPrompt) => {
 
       } catch (aiError) {
         console.error("⚠️ Groq Analysis failed, using fallback:", aiError.message);
-        // Fallback for all results if entire AI call fails
         sortedResults.forEach(p => {
           p.aiDescription = "A premium property matching your criteria perfectly with excellent amenities and location benefits.";
           p.aiBestFitPoints = ["Perfect match", "Prime location", "Modern amenities", "Great value"];
