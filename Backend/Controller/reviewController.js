@@ -100,7 +100,7 @@ exports.getBuilderReviews = async (req, res) => {
         res.status(200).json({
             success: true,
             properties: propertyData, // List of properties with their reviews
-            builderReviews: builderReviews, // Direct builder reviews from collection
+            builderReviews: builderReviews,
             stats: {
                 totalPropertyReviews,
                 avgPropertyRating: avgPropertyRating.toFixed(1),
