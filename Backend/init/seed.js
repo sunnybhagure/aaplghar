@@ -81,11 +81,11 @@ const seedDatabase = async () => {
         } catch (err) {
             console.log(`\n❌ ERROR in ${property.title}:`);
             if (err.response) {
-                // Server ne response dila pan to error aahe (e.g. 400, 500, 401)
+               
                 console.log("Status:", err.response.status);
                 console.log("Message:", JSON.stringify(err.response.data, null, 2));
             } else {
-                // Server paryant request pohchli nahi
+        
                 console.log("Network/Other Error:", err.message);
             }
             console.log("-------------------------------------------\n");
