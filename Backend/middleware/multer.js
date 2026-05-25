@@ -37,7 +37,7 @@ const storage = new CloudinaryStorage({
   },
 });
 
-// .fields() kadhun fakt storage initialize kara
+
 const upload = multer({ storage: storage });
 
 module.exports = upload;
