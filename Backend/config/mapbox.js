@@ -2,12 +2,12 @@ import Map, { Marker, NavigationControl } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useState, useEffect } from 'react';
 
-// Process env madhun token ghetla
+
 const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
 
 const PropertyMap = ({ area, city }) => {
   const [viewState, setViewState] = useState({
-    latitude: 20.5937, // Default India Center
+    latitude: 20.5937,
     longitude: 78.9629,
     zoom: 10
   });
@@ -29,7 +29,7 @@ const PropertyMap = ({ area, city }) => {
           setViewState({
             longitude: lng,
             latitude: lat,
-            zoom: 14 // Thoda jast zoom neighborhood sathi
+            zoom: 14 
           });
         }
       } catch (err) {
@@ -53,7 +53,7 @@ const PropertyMap = ({ area, city }) => {
       <Map
         {...viewState}
         onMove={evt => setViewState(evt.viewState)}
-        mapStyle="mapbox://styles/mapbox/streets-v12" // Standard street view
+        mapStyle="mapbox://styles/mapbox/streets-v12"
         mapboxAccessToken={MAPBOX_TOKEN}
       >
         <NavigationControl position="top-right" />
