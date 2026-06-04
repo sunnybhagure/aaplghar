@@ -6,9 +6,9 @@ const appointmentSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     userName: String,
     userPhone: String,
-    date: { type: String, required: true }, // Format: YYYY-MM-DD
+    date: { type: String, required: true },
     timeSlot: { type: String, required: true }, // Example: "10:00 AM"
-    variant: { type: String, required: true }, // He add kar
+    variant: { type: String, required: true }, 
     status: { 
         type: String, 
         enum: ['pending', 'confirmed', 'cancelled', 'rescheduled'], 
@@ -19,13 +19,13 @@ const appointmentSchema = new mongoose.Schema({
         enum: ['active', 'cancelled'], 
         default: 'active' 
     },
-    actionReason: { type: String }, // Builder चं कारण इथे सेव्ह होईल
-    oldDate: { type: String }, // For rescheduling
-    oldTimeSlot: { type: String }, // For rescheduling
+    actionReason: { type: String }, 
+    oldDate: { type: String }, 
+    oldTimeSlot: { type: String }, 
     updatedAt: { type: Date, default: Date.now },
     message: String,
-    isNewForBuilder: { type: Boolean, default: true }, // For notification
-    isNewForUser: { type: Boolean, default: false }, // For notification
+    isNewForBuilder: { type: Boolean, default: true }, 
+    isNewForUser: { type: Boolean, default: false }, 
     createdAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 
