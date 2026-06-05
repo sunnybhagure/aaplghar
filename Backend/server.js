@@ -89,7 +89,7 @@ app.listen(PORT, () => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error("EXPRESS ERROR:", err); // Ata yithe [object Object] chya jagi error message disel
+  console.error("EXPRESS ERROR:", err); 
   res.status(500).send(err.message);
 });
 
