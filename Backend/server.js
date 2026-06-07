@@ -53,7 +53,7 @@ mongoose.connection.on('error', (err) => {
 });
  
 app.use(session({
-    secret: 'secretKey', // kontihi ek string tak
+    secret: 'secretKey', 
     resave: false,
     saveUninitialized: true
 }));
@@ -87,7 +87,6 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// Error handling middleware
 app.use((err, req, res, next) => {
   console.error("EXPRESS ERROR:", err); 
   res.status(500).send(err.message);
