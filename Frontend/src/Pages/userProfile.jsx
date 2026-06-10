@@ -350,7 +350,7 @@ const ReviewCard = ({ review, type, user, onDelete }) => (
             </p>
           </div>
         ) : (
-          // ReviewCard मधील बिल्डर सेक्शन असा अपडेट करा:
+          
           <div>
             <h4 className="text-[9px] font-black text-orange-600 uppercase tracking-tighter italic">Builder Review</h4>
             <p className="text-sm font-black text-slate-900 uppercase italic leading-none">
