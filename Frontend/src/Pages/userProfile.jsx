@@ -354,7 +354,7 @@ const ReviewCard = ({ review, type, user, onDelete }) => (
           <div>
             <h4 className="text-[9px] font-black text-orange-600 uppercase tracking-tighter italic">Builder Review</h4>
             <p className="text-sm font-black text-slate-900 uppercase italic leading-none">
-              {/* आता आपण builderId पॉप्युलेट केला आहे */}
+              {}
               {review.builderId?.name || "Official Builder"}
             </p>
             <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 flex items-center gap-1">
