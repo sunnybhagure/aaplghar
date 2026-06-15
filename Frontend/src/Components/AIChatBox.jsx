@@ -32,7 +32,7 @@ export default function AIChatBox({ onClose }) {
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
-      {/* Slimmer Container: Max-width 750px for a better chat feel */}
+      {/* Slimmer Container: Max-width 750px for a better  */}
       <div className="w-full max-w-[750px] bg-slate-50 rounded-[2.5rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col h-[85vh] animate-in zoom-in duration-300">
         
         {/* Header */}
