@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { PropertyCard } from './PropertyCard'; 
 import API from "../aap";
 
-// propertyType navacha prop add kela aahe
+
 const TopRatedInCity = ({ city, currentPropertyId, propertyType }) => {
   const [topProperties, setTopProperties] = useState([]);
   const [loading, setLoading] = useState(true);
