@@ -21,7 +21,7 @@ mongoose.connect(dburl, {
     bufferCommands: false,
     retryWrites: true,
     ssl: true,
-    tlsAllowInvalidCertificates: true, // Temp fix for development - should be false in production
+    tlsAllowInvalidCertificates: true, 
     authSource: 'admin',
 })
     .then(() => {
